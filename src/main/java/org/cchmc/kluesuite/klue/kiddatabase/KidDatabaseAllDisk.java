@@ -17,7 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.DataFormatException;
 
-import static htsjdk.samtools.util.StringUtil.stringToBytes;
+//import static htsjdk.samtools.util.StringUtil.stringToBytes;
 import static java.lang.System.exit;
 
 /**
@@ -237,7 +237,7 @@ public class KidDatabaseAllDisk implements KidDatabase {
 //    }
 
 
-    public Integer getLength(int kid){
+    public synchronized Integer getLength(int kid){
         WholeNumberPairDatabaseKey w = new GetLengthKey(kid);
         Integer result = null;
         byte[] value = null;
@@ -252,7 +252,7 @@ public class KidDatabaseAllDisk implements KidDatabase {
         return result;
     }
 
-    public Integer getKid(String name) {
+    public synchronized Integer getKid(String name) {
         GetKidFromSequenceNameKey k = null;
         try {
             k = GetKidFromSequenceNameKey.Builder(name);
@@ -276,14 +276,14 @@ public class KidDatabaseAllDisk implements KidDatabase {
 
     }
 
-    public Integer getLength(String name){
+    public synchronized Integer getLength(String name){
         Integer kid = getKid(name);
         if (kid == null) return null;
         return getLength(kid);
 
     }
 
-    public String getSequenceName(int kid) {
+    public synchronized String getSequenceName(int kid) {
         WholeNumberPairDatabaseKey w = new GetSequenceNameKey(kid);
         String result = null;
         byte[] value = null;
@@ -302,7 +302,7 @@ public class KidDatabaseAllDisk implements KidDatabase {
         return result;
     }
 
-    public HashMap<Integer,Character> getExceptions(int kid){
+    public synchronized HashMap<Integer,Character> getExceptions(int kid){
         WholeNumberPairDatabaseKey w = new GetExceptionsArrKey(kid);
 
         HashMap<Integer,Character> result = null;
@@ -495,7 +495,7 @@ public class KidDatabaseAllDisk implements KidDatabase {
 //    }
 //
 //    @Override
-    public DnaBitString getSequence(int myKID) {
+    public synchronized  DnaBitString getSequence(int myKID) {
 
         ArrayList<ArrayList<Long>> longs = new ArrayList<>();
 
@@ -544,7 +544,7 @@ public class KidDatabaseAllDisk implements KidDatabase {
         return new DnaBitString(result,len, getExceptions(myKID));
     }
 
-    public String getSequence(int myKID, int from, int to, boolean reverse) throws Exception {
+    public synchronized String getSequence(int myKID, int from, int to, boolean reverse) throws Exception {
 
         int sequenceLength = getLength(myKID);
         if (from >= sequenceLength){
@@ -650,7 +650,7 @@ public class KidDatabaseAllDisk implements KidDatabase {
     /**
      * RocksDb prefers to have shutDown() called at end of program, although will automatically do this on shutDown calls
      */
-    public void shutDown(){
+    public synchronized void shutDown(){
         rocks.close();
     }
 

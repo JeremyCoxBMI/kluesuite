@@ -1,7 +1,7 @@
 package org.cchmc.kluesuite;
 
 import org.cchmc.kluesuite.klat2.AlignmentKLAT2;
-import org.cchmc.kluesuite.klat2.Triple;
+//import org.cchmc.kluesuite.klat2.Triple;
 
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
@@ -47,20 +47,20 @@ public class junk {
 //            System.out.println("Null is true");
 //        else
 //            System.out.println("Null is false");
-
-        HashMap<Triple, Boolean> forward;
-        forward = new HashMap<Triple, Boolean>();
-        Triple a = new Triple(1,4,10);
-        Triple b = new Triple(1,4,10);
-        Triple c = new Triple(1,5,11);
-        Triple d = new Triple(1,5,11);
-        forward.put(a, true);
-        forward.put(c, true);
-
-        System.out.println("a\t"+forward.containsKey(a));
-        System.out.println("b\t"+forward.containsKey(b));
-        System.out.println("c\t"+forward.containsKey(c));
-        System.out.println("d\t"+forward.containsKey(d));
+//
+//        HashMap<Triple, Boolean> forward;
+//        forward = new HashMap<Triple, Boolean>();
+//        Triple a = new Triple(1,4,10);
+//        Triple b = new Triple(1,4,10);
+//        Triple c = new Triple(1,5,11);
+//        Triple d = new Triple(1,5,11);
+//        forward.put(a, true);
+//        forward.put(c, true);
+//
+//        System.out.println("a\t"+forward.containsKey(a));
+//        System.out.println("b\t"+forward.containsKey(b));
+//        System.out.println("c\t"+forward.containsKey(c));
+//        System.out.println("d\t"+forward.containsKey(d));
 
     }
 }
