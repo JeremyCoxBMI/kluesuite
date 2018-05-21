@@ -1,0 +1,8 @@
+kluesuite is copyrighted by Jeremy Cox, jeremy.cox@cchmc.org.
+
+You do not have permission to use this software without permission from the author.
+
+kluesuite is currently in development and therefore non-functional.
+
+When it enters Beta stage, I plan (but do not promise) to release as open source.
+

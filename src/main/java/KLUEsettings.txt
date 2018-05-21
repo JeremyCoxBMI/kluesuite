@@ -1,0 +1,22 @@
+
+# **Please use absolute paths to prevent errors when file is moved**
+
+# Path to This File.  Settings group: KLUEsettings
+filename=/home/osboxes/workspace/kluesuite/src/main/java/KLUEsettings.txt
+KID_DATABASE_FORMAT=MEMORY
+
+# One of these must be left blank; either/or selection
+KID_DATABASE_PATH=KID-database.bin
+ROCKS_KID_DATABASE_PATH=
+
+# possible types are LOCAL, LOCAL_16_PARTS, SERVER, SERVER_16_PARTS
+KLUE_DATABASE_FORMAT=LOCAL
+
+# Path to database does not include the last two digits (00 thru 15) for 16 part KLUE
+KMER_Database_Path=k-mers.rocksDB
+
+# Variant Database is used for vKLAT applications currently just with Human Genome
+
+# database exists:  'yes' or 'no'
+VARIANT_DATABASE_EXISTS=no
+VARIANT_DATABASE_PATH=variants.bin

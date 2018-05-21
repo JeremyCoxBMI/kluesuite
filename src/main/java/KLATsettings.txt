@@ -1,0 +1,37 @@
+
+# **Please use absolute paths to prevent errors when file is moved**
+
+# Path to this settings File.  Settings group: KLATsettings
+	filename=/home/osboxes/workspace/kluesuite/src/main/java/KLATsettings.txt
+
+# ***Level 1*** Parameters : Lookup of K-mers for identifying seeds 
+#    Increase speed at cost specificity 
+#    All parameters filter lookup seeds to pare down possibilities (i.e. throw them out).  
+	MIN_SEED_HITS=2
+	MIN_SEED_ADJACENCY=2
+	MIN_FLAST_KLAT_SCORE=3
+	MIN_PERCENT_INDENTITY=50
+
+#    Max Gap allowed to combine speeds to reduce possibilities 
+	MAX_SEED_QUERY_GAP=40
+	MAX_SEED_REFERENCE_GAP=45
+
+#***Level 2*** Parameters to impact alignment calculations
+#   When aligning, extends past edge of repudiated alignment in Reference sequence, could catch gaps, indels, etc (increases run time)
+	WHISKER_LENGTH_ALIGNMENT=50
+
+# ***Speed*** Parameters to simply increase performance speed at trade-off specificity
+#    Skip #(stride - 1) out of every #(stride) adjacent k-mers: increases K-mer blindness 
+	LOOKUP_STRIDE=1
+
+#    Skip indicated number of first K-mers 
+	STRIDE_OFFSET=0
+	STRIDE_MIN_LOOKUPS=4
+
+# ***Specificity*** Increase specificty at cost of speed
+#    Smaller K-mer size allows for more error/variants
+	FORCE_KMER_SIZE=31
+
+#    Redo alignment with smaller K-mer if fail to achieve minimum score
+	REDO_ALIGNMENT_ON_LOW_SCORE=No
+	KMER_SIZE_ON_REDO=21
