@@ -1,6 +1,7 @@
 package org.cchmc.kluesuite.klat;
 
 import org.cchmc.kluesuite.klue.KidDatabaseMemory;
+import org.cchmc.kluesuite.klue.kiddatabase.KidDatabase;
 import org.cchmc.kluesuite.masterklue.KLATsettings;
 import org.cchmc.kluesuite.multithread.KidDatabaseThreadSafe;
 
@@ -25,7 +26,7 @@ public class ReferenceSequenceRequest {
      */
     public int stop;
 
-    public KidDatabaseMemory myKidDB;
+    public KidDatabase myKidDB;
 
 
     /**
@@ -38,7 +39,7 @@ public class ReferenceSequenceRequest {
      * @param queryStart
      * @param queryStop
      */
-    public ReferenceSequenceRequest(int kid, boolean reverse, int start, int stop, KidDatabaseMemory myKidDB, int queryStart, int queryStop, int queryLength){
+    public ReferenceSequenceRequest(int kid, boolean reverse, int start, int stop, KidDatabase myKidDB, int queryStart, int queryStop, int queryLength){
         //this(s.myKid, s.isReverse, s.start, s.end, myKidDB, s.queryEnd - s.queryStart);
 
         myKID = kid;
@@ -50,7 +51,7 @@ public class ReferenceSequenceRequest {
         if (KidDatabaseThreadSafe.ON == true){
             length = KidDatabaseThreadSafe.getSequenceLength(kid);
         } else {
-            length = myKidDB.getSequenceLength(kid);
+            length = myKidDB.getLength(kid);
         }
 
         //Just copying the reference
@@ -86,7 +87,7 @@ public class ReferenceSequenceRequest {
         length = length;  //debug
     }
 
-    public ReferenceSequenceRequest(Seed s, KidDatabaseMemory myKidDB, int queryLength){
+    public ReferenceSequenceRequest(Seed s, KidDatabase myKidDB, int queryLength){
         //call constructor
         this(s.myKid, s.isReverse, s.start, s.end, myKidDB, s.queryEnd, s.queryStart, queryLength);
     }

@@ -60,7 +60,7 @@ public class KLATsettings extends Settings {
 
     /**
      * If distance between two kmer positions in a query sequence is < MAX_SEED_QUERY_GAP and
-     * distance between same two kmer positions in reference sequence is < MAX_SEED_ALIGN_GAP,
+     * distance between same two kmer positions in reference sequence is < MAX_SEED_REFERENCE_GAP,
      * they merge Into the same seed.
      */
     public static final String MaxSeedQueryGap = "MAX_SEED_QUERY_GAP";
@@ -70,7 +70,7 @@ public class KLATsettings extends Settings {
 
     /**
      * If distance between two kmer positions in a query sequence is < MAX_SEED_QUERY_GAP and
-     * distance between same two kmer positions in reference sequence is < MAX_SEED_ALIGN_GAP,
+     * distance between same two kmer positions in reference sequence is < MAX_SEED_REFERENCE_GAP,
      * they merge into the same seed.
      */
     public static final String MaxSeedReferenceGap = "MAX_SEED_REFERENCE_GAP";
@@ -209,7 +209,7 @@ public class KLATsettings extends Settings {
     //public static Integer MAX_SUPERSEEDS_AS_INDIVIDUALS = 6;
 
     // *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *#
-    //WildKLAT settings
+    //WildKLAT_experimental settings
     // *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *# *#
 
     /*

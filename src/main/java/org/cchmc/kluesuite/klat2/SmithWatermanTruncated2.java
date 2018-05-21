@@ -16,6 +16,11 @@ import java.util.Iterator;
  * Java will not initialize a table empty, nor can we simply make array of uninitialized pointers
  * So we are stuck O(mn)
  * Instead, we only create mini-tables for the non-perfectly aligned tables.
+ *
+ * TERMINOLOGY
+ * Cap Sequence: ????? TODO
+ * ExactMatches: alignment already known as perfect (streak of exact seed matches)
+ * CalculatedMatches: part of alignment not based on exact seed matches.
  */
 
 
@@ -80,7 +85,14 @@ public class SmithWatermanTruncated2 implements SmithWaterman, Comparable<SmithW
 
     SparseTable sparseTable;
 
-    public SmithWatermanTruncated2(String query, String refseq, SuperSeed superSeed){
+    /**
+     *
+     * @param query         query as nucleotide string
+     * @param refseq        putative reference sequence as nucleotide string
+     * @param superSeed     primer for known sub alignments
+     * @param calculate     can be set to false to avoid CalculateMatches full sub alignments
+     */
+    public SmithWatermanTruncated2(String query, String refseq, SuperSeed superSeed, boolean calculate){
         this.kid = superSeed.myKid;
         this.refStart = superSeed.start;
         this.superSeed = superSeed;
@@ -90,6 +102,7 @@ public class SmithWatermanTruncated2 implements SmithWaterman, Comparable<SmithW
         //buildSparseTable();
 
         buildSparseTable();
+        if (calculate)  sparseTable.calculateAlignment();
     }
 
     /**
@@ -107,6 +120,7 @@ public class SmithWatermanTruncated2 implements SmithWaterman, Comparable<SmithW
         refStop = columns.length(); //columns
         qStop = rows.length();
 
+        //TODO need to review here :: make sure each box is right size
         sparseTable = new SparseTable(superSeed.numSeeds()*2+2, rows, columns);  //maybe +1?
 
         seedFirst = true;  //will be proven false and set
@@ -140,8 +154,10 @@ public class SmithWatermanTruncated2 implements SmithWaterman, Comparable<SmithW
             sparseTable.add(new CalculatedMatches(curr, InitType.LEFT,
                     0,0,
                     0,0,
-                    0, 0,refStart,
-                    rows.substring(0,curr.queryStart+1), columns.substring(0,curr.start+1)));
+                    curr.queryStart, curr.start,refStart,
+//  BUG 2017.Apr.04  :: the class is expecting full String
+//                    rows.substring(0,curr.queryStart+1), columns.substring(0,curr.start+1)));
+                    rows, columns));
             //queryEnd and end not used
         }
 
@@ -164,6 +180,8 @@ public class SmithWatermanTruncated2 implements SmithWaterman, Comparable<SmithW
             curr = it.next();
 
             //write between gaps
+
+            //2018.Apr.04    bug here in coordinate construction
             sparseTable.add(new CalculatedMatches(
                     prev,
                     curr,
@@ -171,7 +189,8 @@ public class SmithWatermanTruncated2 implements SmithWaterman, Comparable<SmithW
                     sparseTable.getCumulativeMaximumFastKlat(),
                     sparseTable.getCumulativeMaximumSW(),
                     sparseTable.getCumulativeMinimumSW(),
-                    rows.substring(prev.queryEnd,curr.queryStart+1), columns.substring(prev.end,curr.start+1)
+//                    rows.substring(prev.queryEnd,curr.queryStart+1), columns.substring(prev.end,curr.start+1)
+                    rows, columns
             ));
 
             //write new diagonal
@@ -204,8 +223,10 @@ public class SmithWatermanTruncated2 implements SmithWaterman, Comparable<SmithW
                     sparseTable.getCumulativeMaximumSW(),
                     sparseTable.getCumulativeMinimumSW(),
                     qStop, refStop, refStart,
-                    rows.substring(prev.queryEnd,rows.length()), columns.substring(prev.end,columns.length())
+//                    rows.substring(prev.queryEnd,rows.length()), columns.substring(prev.end,columns.length())
+                    rows, columns
             ));
+
 
         }//end if
 

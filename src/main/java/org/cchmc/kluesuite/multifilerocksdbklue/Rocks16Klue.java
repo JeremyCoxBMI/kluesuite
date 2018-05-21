@@ -1,12 +1,18 @@
 package org.cchmc.kluesuite.multifilerocksdbklue;
 
 import org.cchmc.kluesuite.TimeTotals;
-import org.cchmc.kluesuite.klue.KLUE;
+import org.cchmc.kluesuite.klue.KeyValuePair;
 import org.cchmc.kluesuite.klue.PositionList;
 import org.cchmc.kluesuite.rocksDBklue.RocksDbKlue;
+import org.rocksdb.RocksIterator;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 
 /**
  * Created by osboxes on 22/09/16.
@@ -32,12 +38,13 @@ import java.util.Collections;
  */
 
 
-public class Rocks16Klue implements KLUE {
+public class Rocks16Klue extends RocksDbKlue {
 
     protected final String databasePath;
     //protected final String databases[] = new String[16];
     protected final RocksDbKlue rocks[] = new RocksDbKlue[16];
     protected boolean readonly;
+    protected Iterator<byte[]> it;
 
     /**
      *
@@ -45,6 +52,7 @@ public class Rocks16Klue implements KLUE {
      * @param readonly
      */
     public Rocks16Klue(String dbPath, boolean readonly){
+        super();
         this.readonly = readonly;
         databasePath = dbPath;
         if (!readonly)  System.err.println("WARNING : Opening Rocks16Klue in writable mode.  This is ill-advised.");
@@ -57,6 +65,55 @@ public class Rocks16Klue implements KLUE {
         }
         // possibly will addWithTrim some sort of multi-threading support
         // design decision: if we need (probably won't), will addWithTrim this as a child class.  For now, basic functionality for testing.
+    }
+
+
+    public Rocks16Klue(String textFile, String[] dbPaths, boolean readonly){
+        super();
+        this.readonly = readonly;
+        databasePath = textFile;
+        if (!readonly)  System.err.println("WARNING : Opening Rocks16Klue in writable mode.  This is ill-advised.");
+        TimeTotals tt = new TimeTotals();
+        tt.start();
+        System.out.println("\tRocks16Klue opening\t\t"+tt.toHMS());
+        for (int k=0; k<16; k++){
+            System.out.println("\t\topening part "+k+"\t\t"+tt.toHMS());
+            rocks[k] = new RocksDbKlue(dbPaths[k], readonly);  //read only!
+        }
+        // possibly will addWithTrim some sort of multi-threading support
+        // design decision: if we need (probably won't), will addWithTrim this as a child class.  For now, basic functionality for testing.
+    }
+
+    public Rocks16Klue(boolean b, String klue16file) {
+        super();
+        String[] dbPaths = new String[16];
+
+        try(BufferedReader br = new BufferedReader(new FileReader(klue16file))) {
+            int k=0;
+            for(String line; (line = br.readLine()) != null; ) {
+                line = line.trim();
+                dbPaths[k] = line;
+                k++;
+                if (k==16) break;   //prevents white space on lines past first 16 from crashing program
+            }
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        this.readonly = readonly;
+        databasePath = klue16file;
+        if (!readonly)  System.err.println("WARNING : Opening Rocks16Klue in writable mode.  This is ill-advised.");
+        TimeTotals tt = new TimeTotals();
+        tt.start();
+        System.out.println("\tRocks16Klue opening\t\t"+tt.toHMS());
+        for (int k=0; k<16; k++){
+            System.out.println("\t\topening part "+k+"\t\t"+tt.toHMS());
+            rocks[k] = new RocksDbKlue(dbPaths[k], readonly);  //read only!
+        }
+
     }
 
 
@@ -132,7 +189,7 @@ public class Rocks16Klue implements KLUE {
             for( long chunkKey : chunks.get(split(key))){
                 if (chunkKey == key){
                     result.add(temp.get(split(key)).get(x));
-                    //x++;
+                    //nextOffset++;
                     break;
                 }
                 x++;
@@ -166,7 +223,7 @@ public class Rocks16Klue implements KLUE {
             for( long chunkKey : chunks.get(split(key))){
                 if (chunkKey == key){
                     result.add(temp.get(split(key)).get(x));
-                    //x++;
+                    //nextOffset++;
                     break;
                 }
                 x++;
@@ -189,5 +246,19 @@ public class Rocks16Klue implements KLUE {
         return rocks[split].getShortKmerMatches(shorty, prefixLength);
     }
 
+    @Override
+    public RocksIterator newIterator() {
+        System.err.println("WARNING\tRocks16Klue :: newIterator does nothing");
+        return null;
+    }
+
+    @Override
+    public Iterator<KeyValuePair> iterator(){
+        return new Rocks16Iterator(rocks);
+    }
+
+    public Iterator<KeyValuePair> iterator(long key){
+        return new Rocks16Iterator(rocks, key);
+    }
 
 }

@@ -19,11 +19,11 @@ public class DevelopMathKlue16 {
         System.out.println("CCGGGGGGGGAAAAAAAAAATTTTTTTTTCC".substring(0,2));
 
 
-        System.out.println("intToPrefix(7) CA  :> "+Prefix16.intToPrefix(7));
+        System.out.println("intToPrefixString(7) CA  :> "+Prefix16.intToPrefixString(7));
         System.out.println("stringToInt(CA) 7  :> "+Prefix16.prefixToInt("CA"));
         System.out.println("stringToInt(CATT) 7  :> "+Prefix16.prefixToInt("CATT"));
         Kmer31 barry = new Kmer31("ATCGATCGATCGATCGATCGATCGATCGATC");
-        System.out.println("kmer31ToPrefix() AT  :> "+Prefix16.kmer31ToPrefix(barry));
-        System.out.println("kmer31ToInt() AT-12  :> "+Prefix16.kmer31ToInt(barry));
+        System.out.println("kmer31ToPrefixString() AT  :> "+Prefix16.kmer31ToPrefixString(barry));
+        System.out.println("kmer31ToPrefixInt() AT-12  :> "+Prefix16.kmer31ToPrefixInt(barry));
     }
 }

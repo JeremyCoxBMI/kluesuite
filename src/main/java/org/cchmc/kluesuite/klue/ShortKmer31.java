@@ -77,8 +77,8 @@ public class ShortKmer31 extends Kmer31 {
     }
 
     /**
-     * This functions tests if a FULL Kmer31Slow matches the k-mer of shorter length (x) this represents.
-     * In other words, do the initial x letters match between both?
+     * This functions tests if a FULL Kmer31Slow matches the k-mer of shorter length (nextOffset) this represents.
+     * In other words, do the initial nextOffset letters match between both?
      *
      * @param value
      * @return

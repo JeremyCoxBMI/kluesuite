@@ -284,16 +284,16 @@ public class SmithWatermanTruncated implements SmithWaterman, Comparable<SmithWa
         Diagonal d;
 
         //it seems that there is a maximum distance to go for alignment, need not extend too gratuitously
-        // let x = min (rows, cols)
-        // max of x matches
-        // minimum score is x mismatches
+        // let nextOffset = min (rows, cols)
+        // max of nextOffset matches
+        // minimum score is nextOffset mismatches
         //so how many spaces can we go before it is gratuitious?
-        //  maximum x + y
-        //   MATCH*x + MISMATCH y > MISMATCH x
-        //   MISMATCH y > (MISMATCH - MATCH) x
+        //  maximum nextOffset + y
+        //   MATCH*nextOffset + MISMATCH y > MISMATCH nextOffset
+        //   MISMATCH y > (MISMATCH - MATCH) nextOffset
         //    -y > -3x
         //    y < 3x
-        //    x+y < 4x
+        //    nextOffset+y < 4x
 
 
         int x = curr.queryEnd - curr.queryStart;
@@ -645,9 +645,9 @@ public class SmithWatermanTruncated implements SmithWaterman, Comparable<SmithWa
             last_score += MATCH;
             table.get(r)[c].score = last_score;
 
-//            Assert.assertTrue(DNAcodes.equals(columns.charAt(r+x-1), rows.charAt(c+x- 1)));
-//            table.get(r+x)[c+x].move = TableEntry.DIAGONAL;
-//            table.get(r+x)[c+x].score = MATCH + s;
+//            Assert.assertTrue(DNAcodes.equals(columns.charAt(r+nextOffset-1), rows.charAt(c+nextOffset- 1)));
+//            table.get(r+nextOffset)[c+nextOffset].move = TableEntry.DIAGONAL;
+//            table.get(r+nextOffset)[c+nextOffset].score = MATCH + s;
 
             //DEPRECATED TO-DO once debugged, this debugging test can be removed for speed   ISSUE #77
             if (DNAcodes.equals(columns.charAt(c-1), rows.charAt(r-1))) {  //0 indexed rows/columns  vs r, c 1-indexed

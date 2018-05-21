@@ -1,6 +1,7 @@
 package org.cchmc.kluesuite.builddb;
 
 import org.cchmc.kluesuite.TimeTotals;
+import org.cchmc.kluesuite.klue.KLUE;
 import org.cchmc.kluesuite.klue.Kmer31;
 import org.cchmc.kluesuite.klue.PositionList;
 import org.cchmc.kluesuite.rocksDBklue.RocksDbKlue;
@@ -29,7 +30,7 @@ public class CombineRocksDbIntoMaster {
 
     protected String[] dbs;
     protected RocksDbKlue[] rdbs;
-    protected RocksDbKlue master;
+    protected KLUE master;
 
     protected RocksIterator[] its;
     protected PriorityQueue<LookUp> pq;
@@ -145,6 +146,35 @@ public class CombineRocksDbIntoMaster {
     }
 
 
+    public CombineRocksDbIntoMaster(String[] databases, KLUE klue, int MAXFILES, long resume) {
+
+        dbs = databases;
+
+
+        int miniDbOpenFiles = 5;
+
+        tt = new TimeTotals();
+        tt.start();
+
+        master = klue;
+
+        rdbs = new RocksDbKlue[dbs.length];
+        its = new RocksIterator[dbs.length];
+
+        //In theory, should only ever have dbs.length entries (one per db), but let's be careful.
+        pq = new PriorityQueue<LookUp>(dbs.length*2, new LookUpComparator());
+
+        for (int k=0; k<dbs.length; k++){
+            System.out.println("Opening read-only database :\t"+dbs[k]);
+            rdbs[k] = new RocksDbKlue(dbs[k],true,miniDbOpenFiles);
+            its[k] = rdbs[k].newIterator();
+            //its[k].seekToFirst();
+            its[k].seek(RocksDbKlue.longToBytes(resume));
+            putValueAndNext(k);
+        }
+
+
+    }
 
     public CombineRocksDbIntoMaster(String[] databases, String masterPath, int MAXFILES, long resume) {
 
@@ -246,7 +276,6 @@ public class CombineRocksDbIntoMaster {
                 double pct = (new Double(curr.key >> 54) / new Double(1L << 8))*100;
                 Kmer31 x = new Kmer31(curr.key);
 
-                //TODO   verify the speed calculation is correct
                 System.out.println("\tWriting Kmer31 number "+k/period+" million to master :: "+x+"("+x.toLong()+")"+"\t   (average) records/s = "+(k)/tt.timePassedFromStartSeconds()+"\t"+pct+"%");
             }
             value.sortAndRemoveDuplicates();
@@ -358,7 +387,8 @@ public class CombineRocksDbIntoMaster {
                 System.out.println("\tWriting Kmer31 number "+k/period+" million to master :: "+new Kmer31(curr.key)+"   records/s = "+(k*1000000000L)/tt.timePassedFromStart()+"\t"+pct+"%");
             }
 
-            master.putSynchronous(curr.key, value.toArrayListLong());
+            //master.putSynchronous(curr.key, value.toArrayListLong());
+            master.put(curr.key, value.toArrayListLong());
             //BUILT IN PAUSE
             long start = System.nanoTime();
             long end=0;
@@ -439,5 +469,12 @@ public class CombineRocksDbIntoMaster {
         CombineRocksDbIntoMaster crdbim = new CombineRocksDbIntoMaster(databases, "master", maxfiles);
         crdbim.agglomerateAndWriteData();
 
+    }
+
+    public void shutDown(){
+        master.shutDown();
+        for (KLUE k : rdbs){
+            k.shutDown();
+        }
     }
 }

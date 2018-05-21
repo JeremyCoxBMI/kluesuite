@@ -17,9 +17,9 @@
     We have experienced crashes using other JVM's, which were allergic to large data structures.
 
 -- KLUE ID (or kid) is the primary key (for the Database) used to store a DNA sequence.
-The assignment is arbitrary when a database is built.  Therefore your kid is not my kid.
+The assignment is arbitrary when a database is built.  **Therefore your kid is not my kid.**
 Hopefully, in the future, some sort of offical database will be constructed with predefined kid's.
-This is most likely due to the time required to compile a database, they will be distributed via download.
+The need to distribute is also due to the time required to compile a database, they will be distributed via download.
 
 
 

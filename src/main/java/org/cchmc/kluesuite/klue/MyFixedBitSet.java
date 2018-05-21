@@ -259,25 +259,25 @@ public class MyFixedBitSet extends FixedBitSet implements UnsafeSerializable {
 
 //    private void writeObject(java.io.ObjectOutputStream stream) throws IOException {
 //
-//        Integer x = getFixedLength();
-//        stream.writeObject(x);
+//        Integer nextOffset = getFixedLength();
+//        stream.writeObject(nextOffset);
 //
-//        x=fixedBytes;
-//        stream.writeObject(x);
+//        nextOffset=fixedBytes;
+//        stream.writeObject(nextOffset);
 //
-//        x=fixedSize;
-//        stream.writeObject(x);
+//        nextOffset=fixedSize;
+//        stream.writeObject(nextOffset);
 //        stream.writeObject(bits);
 //    }
 //
 //
 //    private void readObject(java.io.ObjectInputStream stream) throws IOException, ClassNotFoundException {
-//        Integer x = (Integer) stream.readObject();
-//        fixedLength = x;
-//        x = (Integer) stream.readObject();
-//        fixedBytes = x;
-//        x = (Integer) stream.readObject();
-//        fixedSize = x;
+//        Integer nextOffset = (Integer) stream.readObject();
+//        fixedLength = nextOffset;
+//        nextOffset = (Integer) stream.readObject();
+//        fixedBytes = nextOffset;
+//        nextOffset = (Integer) stream.readObject();
+//        fixedSize = nextOffset;
 //        bits = (long[]) stream.readObject();
 //    }
 //
@@ -295,16 +295,16 @@ public class MyFixedBitSet extends FixedBitSet implements UnsafeSerializable {
 //
 //    @Override
 //    public void read (Kryo kryo, Input input) {
-//        int x;
+//        int nextOffset;
 //
-//        x = input.readInt();
-//        long[] bits = new long[x];
+//        nextOffset = input.readInt();
+//        long[] bits = new long[nextOffset];
 //
 //        this.fixedLength = input.readInt();
 //        this.fixedSize = input.readInt();
 //        this.fixedBytes = input.readInt();
 //
-//        for (int k=0; k<x; k++){
+//        for (int k=0; k<nextOffset; k++){
 //            bits[k] = input.readLong();
 //        }
 //

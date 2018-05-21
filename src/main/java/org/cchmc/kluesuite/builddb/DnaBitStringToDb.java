@@ -3,6 +3,7 @@ package org.cchmc.kluesuite.builddb;
 import org.cchmc.kluesuite.klat.*;
 import org.cchmc.kluesuite.klue.*;
 import org.cchmc.kluesuite.rocksDBklue.RocksDbKlue;
+import org.cchmc.kluesuite.wildklat.PrefixPair;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -312,8 +313,8 @@ public class DnaBitStringToDb extends DnaBitString {
                 recordForwardAndReverseToStore(new Kmer31(val),kid,k-(Kmer31.KMER_SIZE-1), (k-(Kmer31.KMER_SIZE-1)==0), false);
             }
 
-            if (k % 1000000 == 0){
-                System.out.println("DnaBitStringToDb : processing "+k/1000000+" millions");
+            if (k % 1000000 == 999999){
+                System.out.println("DnaBitStringToDb : processing "+(k+1)/1000000+" millions");
             }
         }
 
@@ -569,7 +570,9 @@ public class DnaBitStringToDb extends DnaBitString {
 
     }
 
-    public void writeAllPositions(RocksDbKlue startEndKlue) {
+    public void writeAllPositions(KLUE startEndKlue) {
+        if (NUM_BITS < 31) return;
+
         HashSet<Integer> skips = excludedPositions();
         int nextIndex;
         int k;
@@ -583,26 +586,39 @@ public class DnaBitStringToDb extends DnaBitString {
             if (compressed.get(bitA(k))) val += 2;  //bug was k+1
             if (compressed.get(bitB(k))) val += 1;  //bug was k+1
 
-//            System.out.println("k:\t"+k+"\tkmer\t"+new Kmer31(val));
             if ( k >= (Kmer31.KMER_SIZE-1) &&       // if k == 30, we have 31 letters added
                     k < (NUM_BITS /2) -1 &&              //save last write for end
                     !skips.contains(k-(Kmer31.KMER_SIZE-1)) ){
-//                System.err.println("adding\t"+k+"\t"+new Kmer31(val));
-                if (k-(Kmer31.KMER_SIZE-1)==0){
-                    //START POSITION
-                    Kmer31 v = new Kmer31(val);
-                    recordForwardAndReverseToStore(v,kid,k-(Kmer31.KMER_SIZE-1), true, false);
-                    Position loc = new Position(kid, k-(Kmer31.KMER_SIZE-1));
-                    loc.setFlag(Position.START,true);
-                    startEndKlue.append(val,loc.toLong());
+
+                int pos=k-(Kmer31.KMER_SIZE_MINUS_ONE);
+                Kmer31 word = new Kmer31(val);
+                Kmer31 revWord = word.reverseStrand();
+                Position loc = new Position(kid, k-(Kmer31.KMER_SIZE-1));
+                Position revLoc = new Position(kid, pos + Kmer31.KMER_SIZE_MINUS_ONE );
+                revLoc.setFlag(Position.REVERSE, true);
+
+                boolean START = pos==0;
+                boolean STOP = pos == (NUM_BITS/2)-1;
+
+                if (START) {
+                    loc.setFlag(Position.START, true);
+                    revLoc.setFlag(Position.STOP, true);
+                    startEndKlue.append(word.toLong(),loc.toLong());
+                    startEndKlue.append(revWord.toLong(),revLoc.toLong());
                 }
-                recordForwardAndReverseToStore(new Kmer31(val),kid,k-(Kmer31.KMER_SIZE-1), false, false);
-
-
+                if (STOP) {
+                    loc.setFlag(Position.STOP, true);
+                    revLoc.setFlag(Position.START, true);
+                    startEndKlue.append(word.toLong(),loc.toLong());
+                    startEndKlue.append(revWord.toLong(),revLoc.toLong());
+                }
+                klue.append(word.toLong(), loc.toLong());
+                klue.append(revWord.toLong(), revLoc.toLong());
+                long debug = word.toLong();
             }
 
-            if (k % 1000000 == 0){
-                System.out.println("DnaBitStringToDb : processing "+k/1000000+" millions");
+            if (k % 1000000 == 999999){
+                System.out.println("DnaBitStringToDb : processing "+(k+1)/1000000+" millions");
             }
         }
 

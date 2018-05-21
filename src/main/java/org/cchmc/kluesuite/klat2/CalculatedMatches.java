@@ -6,11 +6,19 @@ import org.cchmc.kluesuite.klue.Kmer31;
 import org.cchmc.kluesuite.klue.SuperString;
 
 import java.util.ArrayList;
+import java.util.zip.DataFormatException;
 
 /**
- * Created by jwc on 10/5/17.
+ * Created by jwc on 10/05/2017.
  *
- * For *gaps* between seeds
+ * For *gaps* _between_ long seeds (of adjacency) in SuperSeeds
+ *
+ * DESIGN DECISIONS
+ *  - coordinates used will be the real coordinates of the alignment S/W table
+ *      - so we just adjust by subtracting box start coordinates
+ *  - sub table score always starts at 0, then the values are adjusted by previous
+ *      - thus, a table calculation is not necessary if previous score were to change
+ *
  */
 public class CalculatedMatches extends Box2 {
 
@@ -18,7 +26,11 @@ public class CalculatedMatches extends Box2 {
     public InitType mytype;
     ArrayList<TableEntry2[]> table;
 
-    //Note these rows represent the rows and column sequence letters over range inclusive to inclusive
+    /**
+     * Note these rows represent the rows and column sequence letters
+     * (the whole deal, not over range inclusive to inclusive)
+     * (thus, only references are duplicated, not partial arrays)
+     */
     String rows;
     String cols;
 
@@ -42,11 +54,6 @@ public class CalculatedMatches extends Box2 {
         this.rows = rows;
         this.cols = cols;
         calculateScores();
-//        if (this.mytype == InitType.LEFT) {
-//            //add coordinate buffer to left for larger table in left; requires blank first row and column
-//            this.rows = " " + this.rows;
-//            this.cols = " " + this.cols;
-//        }
     }
 
     /**
@@ -68,6 +75,8 @@ public class CalculatedMatches extends Box2 {
         super();
         this.mytype = mytype;
         this.type = BoxType.CALCULATED;
+        cumulativeActualFastKlatScore = -1;
+        cumulativeSmithWatermanScore = -1;
         if (mytype == InitType.MID){
             System.err.println("MIDDLE type calculated match region must use different constructor.  Wrong information passed.");
         }
@@ -79,13 +88,14 @@ public class CalculatedMatches extends Box2 {
             this.erow=queryStop - 1;    //EXCLUSIVE to INCLUSIVE, WANT OVERLAP
         } else if (mytype == InitType.LEFT) {
             //seed here is actually next --> but one name above in function call
-            this.ecol = seed.start;//WANT OVERLAP
+            this.ecol = seed.start ;//WANT OVERLAP
             this.erow = seed.queryStart;  //WANT OVERLAP
             this.scol=0;    //no matter where it starts, we include the whole thing
             this.srow=0;    //no matter where it starts, we include the whole thing
+            cumulativeActualFastKlatScore = 0;
+            cumulativeSmithWatermanScore = 0;
         }
-        cumulativeActualFastKlatScore = -1;
-        cumulativeSmithWatermanScore = -1;
+
         cumulativeMinimumFastKlatScore = prevMinimumFastKlat;
         cumulativeMaximumFastKlatScore = prevMaximumFastKlat;
         cumulativeMinimumSWscore = prevSWmin;
@@ -134,6 +144,7 @@ public class CalculatedMatches extends Box2 {
     /**
      * REQUIREMENT:
      * GAP >= abs(MISMATCH), MISMATCH == GAP
+     * Calculates the SW and FastKLAT score min and max
      */
     public void calculateScores() {
         int m = (ecol - scol);
@@ -150,6 +161,7 @@ public class CalculatedMatches extends Box2 {
         int maxMismatches = 0;  //maxMismatches given optimal score
         //int minMatches = 0;  //always 0
 
+        //TODO check formulas
         if (mytype == InitType.RIGHT || mytype == InitType.LEFT){
             maxMatches = Math.min(m - 2, n);
             minMismatches = Math.max(1, (m - maxMatches - 1));
@@ -183,7 +195,8 @@ public class CalculatedMatches extends Box2 {
 
     @Override
     public void calculateScores(int prevSWscore, int prevFastKlatScore) {
-        buildTableAndCalculateAlignment(prevSWscore, prevFastKlatScore);
+        if (table == null)
+            buildTableAndCalculateAlignment(prevSWscore, prevFastKlatScore);
     }
 
     /**
@@ -196,7 +209,7 @@ public class CalculatedMatches extends Box2 {
         int num_table_rows = erow-srow+1;  //INCLUSIVE INCLUSIVE
         int num_table_cols = ecol-scol+1;
 
-        constructTable(previousSW, previousFastKlat);
+        constructCalculateMiniSWTable(previousSW, previousFastKlat);
 //TODO
 //        if (mytype == InitType.LEFT) {
 //            constructLeftTable(previousSW, previousFastKlat);
@@ -218,26 +231,63 @@ public class CalculatedMatches extends Box2 {
 //    private void constructMidTable(int previousSW, int previousFastKlat) {
 //    }
 
-    public static int getScore(ArrayList<TableEntry2[]> table, int r, int c){
+    public static Integer getScore(ArrayList<TableEntry2[]> table, int r, int c) throws DataFormatException {
+
         if (r <0 || c < 0)
+            //this sub-table always starts at 0; no negative indexes
             return 0;
-        else
-            return table.get(r)[c].score;
+
+        if (table == null){
+            throw new DataFormatException("CalculatedMatches::getScore called with null ArrayList");
+        }
+
+//        if (r==4 && c == 4)
+//            c++;
+
+        TableEntry2 t = table.get(r)[c];
+        if (t == null) {  //unintialized, intentional when row or column was skipped with FIRST_ROW_COL_CALCULATED=1
+            return null;
+        }
+        return t.score;
 
     }
 
-    public static int getFastKlatScore(ArrayList<TableEntry2[]> table, int r, int c){
-        if (r < 0 || c < 0)
+    public static Integer getFastKlatScore(ArrayList<TableEntry2[]> table, int r, int c){
+        if (r < 0 || c < 0) {
             return 0;
-        else
-            return table.get(r)[c].fastScore;
-
+        }else {
+            TableEntry2 t = table.get(r)[c];
+            if (t != null)
+                return t.fastScore;
+            else
+                // score is relative to table  if uninitialized, this means we are in leftCap
+                // thus we can end without reaching upper left corner
+                // therefore, the fastKlatScore is 0
+                return 0;
+        }
     }
 
-    private void constructTable(int previousSW, int previousFastKlat) {
+    /**
+     * Constructs a subtable of smith-waterman alignment table and fills it in
+     * This is the main function of this class
+     * Here, the SW alignment is calculated
+     *
+     * @param previousSW
+     * @param previousFastKlat
+     */
+    private void constructCalculateMiniSWTable(int previousSW, int previousFastKlat) {
         // **************************
         // construct table
         // **************************
+
+        // **************************
+        // major change over original: first row and column are not empty by definition !!!
+        // however, if not leftCap, they will be empty because first position is a MATCH
+        // **************************
+
+        if (table != null){
+            System.err.println("WARNING\t\tCAclulatedMAtches::constructCalculateMiniSWTable called when already constructed");
+        }
 
         //first row and column include matching kmer end, so
         int num_table_rows = erow - srow + 1;  //INCLUSIVE INCLUSIVE
@@ -245,171 +295,70 @@ public class CalculatedMatches extends Box2 {
 
         table = new ArrayList<TableEntry2[]>(num_table_rows);
 
+
+        //Programmer's note:
+        // table is now 0-indexed relative to itself,
+        // which translates to row = k+srow and col = j+scol coordinates
+        // this consideration is irrelevant to this table, but relevant for get() functions
+
         for (int k = 0; k < num_table_rows; k++) {
             TableEntry2[] row = new TableEntry2[num_table_cols];
-            for (int j = 0; j < num_table_cols; j++) {
-                row[j] = new TableEntry2();
-            }
+            // writeBestMove(..) now constructs the TableEntry2 in each "cell"
             table.add(row);       //initializes to move = DIAGONAL, score = 0
         }
 
-        //to control filling in columns differently due to mytype AND adjacency on diagonal
+        // to control filling in columns differently due to mytype AND adjacency on diagonal
         // is true IF allowed to be a match close to ends
         boolean leftCap = false;
         boolean rightCap = false;
         int LAST_ROW_CALCULATE = num_table_rows - 2;
         int LAST_COL_CALCULATE = num_table_cols - 2;
+        int FIRST_ROW_COL_CALCULATE = 1;
 
         if (mytype == InitType.LEFT) {
             leftCap = true;
+            FIRST_ROW_COL_CALCULATE = 0;
         } else if (mytype == InitType.RIGHT) {
             LAST_COL_CALCULATE += 1;
             LAST_ROW_CALCULATE += 1;
             rightCap = true;
         }
 
-        //DEBUG
-//        printTable(num_table_rows, num_table_cols, rows, cols);
-
-        //table is now 0-indexed, which translates to k+srow and j+scol coordinates
-        //this consideration is irrelevant to this table
-
-        for (int k = 0; k < num_table_rows; k++) {
-            TableEntry2[] row = new TableEntry2[num_table_cols];
-            for (int j = 0; j < num_table_cols; j++) {
-                row[j] = new TableEntry2();
-            }
-            table.add(row);       //initializes to move = DIAGONAL, score = 0
-        }
-
-
-        //Initialize first column/row (all zeroes)
-
-        //constructor sets scores to 0
-        //first row except corner set to RIGHT
-
-        //TO DO
-
-//        for (int j = 1; j < num_table_cols; j++) {
-//            table.get(0)[j].move = TableEntry.RIGHT;
-//        }
-//
-//        //first column except corner set to DOWN
-//        for (int k = 1; k < num_table_rows; k++) {
-//            table.get(k)[0].move = TableEntry.DOWN;
+//        if (FIRST_ROW_COL_CALCULATE == 1){
+//            table.get(0)[0] = new TableEntry2(0,0,0);//start blank slate
 //        }
 
+        table.get(0)[0] = new TableEntry2(0,0,0);//start blank slate
 
-        //Upper left corner can not place a move.  So it is EMPTY; unless a left cap
-        //leftCap handled by special treatment of first box (which is only place behavior changes)
-        if (leftCap) {
-            if (rows.charAt(0) == cols.charAt(0)) {
-                table.get(0)[0].move = TableEntry2.DIAGONAL;
-                table.get(0)[0].score = SmithWatermanTruncated2.MATCH;
-                table.get(0)[0].fastScore = 1;
-            } else {
-                table.get(0)[0].move = TableEntry2.DIAGONAL;
-                table.get(0)[0].score = SmithWatermanTruncated2.MISMATCH;
-                table.get(0)[0].fastScore = 0;
-            }
-        } else {
-            table.get(0)[0].move = TableEntry2.EMPTY;
-        }
+        // over table, move diagonally down, calculating row then column starting at the diagonal square position
+        // do not calculate last row/col if perfect match is next
 
-        //Need columns (text) and rows(text)
-
-
-        //LAST_ROW_CALCULATE extended for
-        int diagonal, down, right;
-        int z = 0;
-        boolean match = false;
-        for (int k = srow; k <= LAST_ROW_CALCULATE; k++, z++) {
+        int k,j;
+        for (k = FIRST_ROW_COL_CALCULATE; k <= LAST_ROW_CALCULATE; k++) {
             // calculate row k and column k first
-            for (int j = scol + z; j <= LAST_COL_CALCULATE; j++) {
-                //calculate row k, column j next
-                match = false;
-                if (DNAcodes.equals(cols.charAt(j - scol), rows.charAt(k - srow))) {
-                    //they match
-                    match = true;
-                    //ends of strings cannot be a match
-                    if ((k != erow - 1 && j != ecol - 1) || (k != srow + 1 && j != scol + 1)) {  //TODO CHECK
-                        diagonal = SmithWatermanTruncated2.MISMATCH + getScore(table, k - 1 - srow, j - 1 - scol);
-                    } else {
-                        diagonal = SmithWatermanTruncated2.MATCH + getScore(table, k - 1 - srow, j - 1 - scol);
-                    }
-                } else {
-                    diagonal = SmithWatermanTruncated2.MISMATCH + getScore(table, k - 1 - srow, j - 1 - scol);
-                }
-                down = SmithWatermanTruncated2.GAP + getScore(table, k - 1 - srow, j - scol);
-                right = SmithWatermanTruncated2.GAP + getScore(table, k - srow, j - 1 - scol);
 
-                if (diagonal > down && diagonal > right) {
-                    table.get(k - srow)[j - scol].move = TableEntry2.DIAGONAL;
-                    table.get(k - srow)[j - scol].score = diagonal;
-                    table.get(k - srow)[j - scol].fastScore = getFastKlatScore(table, k - srow - 1, j - scol - 1);
-                    if (match)
-                        table.get(k - srow)[j - scol].fastScore += 1;
-                } else {
-                    if (right == down) {
-                        //table.get(k-srow)[j-scol].move = TableEntry2.TIE;
-                        table.get(k - srow)[j - scol].move = TableEntry2.DOWN;
-                        table.get(k - srow)[j - scol].score = right;
-                        table.get(k - srow)[j - scol].fastScore = getFastKlatScore(table, k - srow, j - scol - 1);
-                    } else if (right > down) {
-                        table.get(k - srow)[j - scol].move = TableEntry2.RIGHT;
-                        table.get(k - srow)[j - scol].score = right;
-                        table.get(k - srow)[j - scol].fastScore = getFastKlatScore(table, k - srow, j - scol - 1);
-                    } else {
-                        table.get(k - srow)[j - scol].move = TableEntry2.DOWN;
-                        table.get(k - srow)[j - scol].score = down;
-                        table.get(k - srow)[j - scol].fastScore = getFastKlatScore(table, k - srow - 1, j - scol);
-                    }
-                }
+            for ( j = (k==0) ? 1 : k;  //skip cell 0,0
+                  j <= LAST_COL_CALCULATE; j++) {
+                //calculate row k, column j ; MOVING ACROSS ROW LEFT TO RIGHT
+                table.get(k)[j] = writeBestMove(k,j,LAST_ROW_CALCULATE,LAST_COL_CALCULATE, leftCap,rightCap);
             }   // end for j
 
-            // Necessary Code
-            // Do not understand the magic in how it works
-            // I think this processes the column to the left?
-            //This processes the the leftmost column
-            //WE must have first row and first column to calculate second row and second column (DOWN and RIGHT operations)
-            int j = scol + z;
-            for (int x = srow + z + 1; x <= LAST_ROW_CALCULATE; x++) {
-                match = false;
-                if (DNAcodes.equals(cols.charAt(j - scol), rows.charAt(x - srow))) {
-                    //they match
-                    diagonal = SmithWatermanTruncated2.MATCH + getScore(table, x - srow - 1, j - scol - 1);
-                    match = true;
-                } else {
-                    diagonal = SmithWatermanTruncated2.MISMATCH + getScore(table, x - srow - 1, j - scol - 1);
-                }
-                down = SmithWatermanTruncated2.GAP + getScore(table, x - srow, j - scol - 1);
-                right = SmithWatermanTruncated2.GAP + getScore(table, x - srow - 1, j - scol);
+            // moving diagonally down right through array;
+            // this row was at index k just calculated
+            // this column at index k needs to be calculated
+            //We must have first row and first column to calculate second row and second column (DOWN and RIGHT operations)
 
-                if (diagonal >= down && diagonal >= right) {
-                    table.get(x - srow)[j - scol].move = TableEntry2.DIAGONAL;
-                    table.get(x - srow)[j - scol].score = diagonal;
-                    table.get(k - srow)[j - scol].fastScore = getFastKlatScore(table, k - srow - 1, j - scol - 1);
-                    if (match)
-                        table.get(k - srow)[j - scol].fastScore += 1;
-                } else {
-                    if (right == down) {
-                        //table.get(x-srow)[j-scol].move = TableEntry2.TIE;
-                        table.get(x - srow)[j - scol].move = TableEntry2.DOWN;
-                        table.get(x - srow)[j - scol].score = right;
-                        table.get(k - srow)[j - scol].fastScore = getFastKlatScore(table, k - srow, j - scol - 1);
-                    } else if (right > down) {
-                        table.get(x - srow)[j - scol].move = TableEntry2.RIGHT;
-                        table.get(x - srow)[j - scol].score = right;
-                        table.get(k - srow)[j - scol].fastScore = getFastKlatScore(table, k - srow - 1, j - scol);
-                    } else {
-                        table.get(x - srow)[j - scol].move = TableEntry2.DOWN;
-                        table.get(x - srow)[j - scol].score = down;
-                        table.get(k - srow)[j - scol].fastScore = getFastKlatScore(table, k - srow, j - scol - 1);
-                    }
-                }
-            } // end for j
+            //column remains fixed; going down
+            int c = k;  //strictly unnecessary, used for clarity
+            int r = k + 1;
+            if (r <= LAST_ROW_CALCULATE) {
+                for (; r <= LAST_ROW_CALCULATE; r++) {  // position k,k already calculated by row k calculations
+                    table.get(r)[c] = writeBestMove(r, c, LAST_ROW_CALCULATE, LAST_COL_CALCULATE, leftCap, rightCap);
+                } // end for j
+            }
 
         } // end for k
+
 
         String DEBUG1 = "BREAK.POINT";
 
@@ -424,39 +373,44 @@ public class CalculatedMatches extends Box2 {
 
         if (rightCap) {
             //scan for all possibilities (boring)
-            int lastCol = cols.length()-1;
-            int lastRow = rows.length()-1;
-
-
             int maxScore = Integer.MIN_VALUE;
             int maxFast = Integer.MIN_VALUE;
-            int sw, fk;
+            Integer sw, fk;
 
             // QUESTION: will all fastKlat and SW corresponding scores match?
             // I think not
             // SW(MATCH)  == SW(2 MATCH, 2 GAPS)
 
-            for (int k=0; k <= lastRow; k++){
-                sw = getScore(table, k, lastCol);
-                fk = getFastKlatScore(table,k,lastCol);
-                if (sw >= maxScore && fk >= maxFast){
-                    maxScore = sw;
-                    maxFast = fk;
-                }
-            }
-            for (int j=0; j <= lastCol; j++){
-                sw = getScore(table, lastRow,j);
-                fk = getFastKlatScore(table,lastRow,j);
-                if (sw >= maxScore && fk >= maxFast){
-                    maxScore = sw;
-                    maxFast = fk;
-                }
-            }
+            try {
+                //scan last column
+                for (k = 0; k <= LAST_ROW_CALCULATE; k++) {
+                    sw = getScore(table, k, LAST_COL_CALCULATE);
+                    fk = getFastKlatScore(table, k, LAST_COL_CALCULATE);
 
-            cumulativeActualFastKlatScore = maxFast;
-            cumulativeSmithWatermanScore = maxScore;
+                    //short circuit if null returned
+                    if (sw != null && sw >= maxScore)
+                        maxScore = sw;
+                    if (fk != null && fk >= maxFast)
+                        maxFast = fk;
 
+                }
+                //scan last row
+                for (j = 0; j <= LAST_COL_CALCULATE; j++) {
+                    sw = getScore(table, LAST_ROW_CALCULATE, j);
+                    fk = getFastKlatScore(table, LAST_ROW_CALCULATE, j);
+                    if (sw != null && fk != null && sw >= maxScore && fk >= maxFast) {
+                        maxScore = sw;
+                        maxFast = fk;
+                    }
+                }
+            } catch (DataFormatException e) {
+                e.printStackTrace();
+                System.exit(1);
+            }
+            cumulativeActualFastKlatScore = maxFast + previousFastKlat;
+            cumulativeSmithWatermanScore = maxScore + previousSW;
         } else {
+            //not rightcap, no scanning needed
             cumulativeActualFastKlatScore = previousFastKlat + table.get(LAST_ROW_CALCULATE)[LAST_COL_CALCULATE].fastScore;
             cumulativeSmithWatermanScore = previousSW + table.get(LAST_ROW_CALCULATE)[LAST_COL_CALCULATE].score;
         }
@@ -630,29 +584,48 @@ public class CalculatedMatches extends Box2 {
 //        return SmithWatermanTruncated2.MISMATCH + calculateSWMinimumScore();
 //    }
 
+    public String printTable(){
+        int nr = table.size();
+        int nc = table.get(0).length;
+        return printTable(nr, nc, rows, cols);
+    }
+
+
     public String printTable(int num_table_rows, int num_table_cols, String rows, String columns){
         int mySize = 8;
         SuperString ss = new SuperString();
         ss.add(justifyLeft("",mySize));
-        for (int j=1; j <= num_table_cols; j++) {
-            ss.add(justifyLeft(columns.charAt(j-1),mySize));
+        System.out.println("DEBUG ROWS "+rows.substring(srow,erow+1));
+        System.out.println("DEBUG COLS "+columns.substring(scol,ecol+1));
+
+        for (int j=0; j <  num_table_cols; j++) {
+            ss.add(justifyLeft(columns.charAt(j+scol),mySize));
         }
         ss.add("\n");
         String stringo = "";  //use string to create entry to justify
         for (int k=0; k < num_table_rows; k++){
-            ss.add(justifyLeft(rows.charAt(k),mySize));
+            ss.add(justifyLeft(rows.charAt(k+srow),mySize));
 
             for (int j=0; j < num_table_cols; j++) {
-                if (table.get(k)[j].move == TableEntry2.DIAGONAL) {
+                TableEntry2 t = table.get(k)[j];
+                if (t == null){
+                    stringo = "o __"; //use empty symbol, '__' for uninitialized
+                } else if (t.move == TableEntry2.DIAGONAL) {
                     stringo = "* ";
-                } else if (table.get(k)[j].move == TableEntry2.DOWN) {
+                    stringo += Integer.toString(t.score);
+                } else if (t.move == TableEntry2.DOWN) {
                     stringo = "^ ";
-                } else if (table.get(k)[j].move == TableEntry2.RIGHT) {
+                    stringo += Integer.toString(t.score);
+                } else if (t.move == TableEntry2.RIGHT) {
                     stringo = "< ";
+                    stringo += Integer.toString(t.score);
+                } else if (t.move == TableEntry2.EMPTY) {
+                    stringo = "o ";
+                    stringo += Integer.toString(t.score);
                 } else {
-                    stringo = "X ";
+                    stringo = "problem";
                 }
-                stringo += Integer.toString(table.get(k)[j].score);
+//                stringo += Integer.toString(table.get(k)[j].score);
                 ss.add(justifyLeft(stringo, mySize));
 
             }
@@ -686,4 +659,146 @@ public class CalculatedMatches extends Box2 {
         }
         return ss.toString();
     }
+
+    /**
+     *
+     * @param k     row coordinate
+     * @param j     col coordinate
+     * @param LAST_ROW_CALCULATE    from construct table; determines proper edge
+     * @param LAST_COL_CALCULATE    from construct table; determines proper edge
+     * @param leftCap   is first column & first row calculated (left most sub-table)
+     * @param rightCap  is last column &  last  row calculated (right most sub-table)
+     * @return
+     */
+    private TableEntry2 writeBestMove(int k, int j, int LAST_ROW_CALCULATE, int LAST_COL_CALCULATE, boolean leftCap, boolean rightCap){
+        //calculate row k, column j next
+        boolean match = false;
+
+        //TODO fix calculations
+
+        //pre-existing values
+        //return null if non-existant
+        Integer diagonal = null;
+        Integer down = null;
+        Integer right = null;
+        try {
+            diagonal = getScore(table, k - 1, j - 1);
+            down = getScore(table, k - 1, j);
+            right = getScore(table, k, j - 1);
+        } catch (DataFormatException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        //convert from relative 0 coordinates to actual query/reference String coordinates
+        if (diagonal != null) {
+            if (DNAcodes.equals(cols.charAt(j + scol), rows.charAt(k + srow))) {
+                //they match
+                match = true;
+
+                //ends of strings cannot be a match
+                if ((!leftCap && (k == 0) && (j == 0))
+                        ||
+                        (!rightCap && (k == LAST_ROW_CALCULATE) && (j == LAST_COL_CALCULATE))
+                        ) {
+                    diagonal += SmithWatermanTruncated2.MISMATCH;
+                } else {
+                    diagonal += SmithWatermanTruncated2.MATCH;
+                }
+            } else {
+                diagonal += SmithWatermanTruncated2.MISMATCH;
+            }
+        } else {
+            //illegal move; path must connect to top left
+            diagonal = Integer.MIN_VALUE;  //will not win
+        }
+        if (down != null) {
+            down += SmithWatermanTruncated2.GAP;
+        } else {
+            //illegal move; path must connect to top left
+            down = Integer.MIN_VALUE;  //will not win
+        }
+        if (right != null) {
+            right += SmithWatermanTruncated2.GAP;
+        } else {
+            //illegal move; path must connect to top left
+            right = Integer.MIN_VALUE;  //will not win
+        }
+
+        return writeBestMove(k, j, match, diagonal, down, right);
+    }
+
+
+    /**
+     * records the best move for the position indicated by coordinate (r,c) to the tableEntry
+     * constructs the tableEntry2, using branching logic to determine which is best
+     *
+     * @param r
+     * @param c
+     * @param match
+     * @param diagonal
+     * @param down
+     * @param right
+     */
+    private TableEntry2 writeBestMove(int r, int c, boolean match, int diagonal, int down, int right) {
+        //DEFAULT MOVE IS DOWN
+        //IN CASE OF TIE, use diagonal move for score -- could be a match
+        int move, score, fastScore;
+//        if (right == -3)
+//            "DEBUG".equals("HERE");
+        if (diagonal == down && down == right) {
+            //three way tie
+            move = TableEntry2.TIE;
+            score = diagonal;
+
+
+            int tmp = getFastKlatScore(table, r - 1, c - 1);  //+1 for match
+            if (match){
+                fastScore = tmp+1;
+            } else {
+                int x = Math.max(getFastKlatScore(table,r-1,c),getFastKlatScore(table,r,c-1));
+                fastScore = Math.max(x, tmp);
+            }
+
+//            int tmp = fastScore = Math.max(
+//                    getFastKlatScore(table, r, c - 1),  //right
+//                    getFastKlatScore(table, r - 1, c)  //down
+//            );
+//
+//            if (match)
+//                fastScore = Math.max(
+//
+//                        tmp
+//                );
+//            else
+//                fastScore = Math.max(
+//                        getFastKlatScore(table, r - 1, c - 1),
+//                        tmp
+//                );
+        } else if (diagonal > down && diagonal > right) {
+            move = TableEntry2.DIAGONAL;
+            score = diagonal;
+            fastScore = getFastKlatScore(table, r - 1, c - 1);
+            if (match)
+                fastScore += 1;
+        } else {
+            //then down or right is winner
+            if (right == down) {
+                move = TableEntry2.DOWN;
+                score = right;
+                fastScore = getFastKlatScore(table, r, c - 1);
+            } else if (right > down) {
+                move = TableEntry2.RIGHT;
+                score = right;
+                fastScore = getFastKlatScore(table, r, c - 1);
+            } else {  // right < down
+                move = TableEntry2.DOWN;
+                score = down;
+                fastScore = getFastKlatScore(table, r - 1, c);
+            }
+        }
+
+        return new TableEntry2(move, score, fastScore);
+    }
+
 }

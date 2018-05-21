@@ -1,11 +1,13 @@
 package org.cchmc.kluesuite.memoryklue;
 
+import org.cchmc.kluesuite.helperclasses.LogStream;
 import org.cchmc.kluesuite.klue.KLUE;
 import org.cchmc.kluesuite.klue.Position;
 import org.cchmc.kluesuite.klue.PositionList;
 import org.cchmc.kluesuite.rocksDBklue.RocksDbKlue;
 import org.cchmc.kluesuite._oldclasses.PermutatorLimitAdjacent;
 
+import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Random;
@@ -111,7 +113,7 @@ public class MemoryKlueHeapFastImportArray implements KLUE {
     public MemoryKlueHeapFastImportArray(int size){
 
         //System.err.println("\n\t\tMemoryKlueHeapFastImportArray constructor :: approx memory used (OLD est)"+(INFLATION*32*size)/(1024*1024*1024)+" GB");
-        System.err.println("\n\t\tMemoryKlueHeapFastImportArray constructor :: approx memory used "+new Double(size)/1000/1000/50*6+" GB");
+        System.err.println("\n\t\tMemoryKlueHeapFastImportArray constructor :: approx memory used "+new Double(size)/1000/1000/50*3+" GB");
 
         //initialize
         MAX_SIZE = size;
@@ -246,7 +248,7 @@ public class MemoryKlueHeapFastImportArray implements KLUE {
                 System.err.println("\t\tWARNING : will lead to database truncation : No database to dump to this dump == null.");
 
             } else {
-                System.out.println("\t\tThis is file dump # "+dumpCount);
+                System.out.println("\t\tThis is file dump # "+dumpCount+"\t\t"+dump);
                 dumpToDatabase(dump);
                 dump.shutDown();
                 String newPath = dumpName + ".p" + dumpCount;
@@ -292,6 +294,11 @@ public class MemoryKlueHeapFastImportArray implements KLUE {
 
     }
 
+
+//    public Iterator<KeyValuePair> iterator() {
+//        System.err.println("MemoryKlueHeapFastImportArray :: iterator() is not implemented; this is a specialized class for database building");
+//        return null;
+//    }
 
 
     /**
@@ -367,6 +374,9 @@ public class MemoryKlueHeapFastImportArray implements KLUE {
     }
 
     public static void main(String[] args) {
+
+        LogStream.startStdStreams();
+
         MemoryKlueHeapFastImportArray hpkfia = new MemoryKlueHeapFastImportArray(215);
 
 
@@ -424,7 +434,12 @@ public class MemoryKlueHeapFastImportArray implements KLUE {
      */
     private int dumpToDatabase(KLUE rocksklue){
 
+        int PERIOD = size / 100;
+        LogStream.stderr.printlnTimeStamped("Starting heapify preceeding database dump");
+
         this.heapify();
+
+        LogStream.stderr.printlnTimeStamped("heapify complete");
 
         PositionList pl= new PositionList();
         KVpair t;
@@ -435,6 +450,8 @@ public class MemoryKlueHeapFastImportArray implements KLUE {
         //int lastSize = 101;
 
         int k=0;
+        int loopy=0;
+
         while (this.hasNext()){
             t = this.remove();
 
@@ -444,9 +461,11 @@ public class MemoryKlueHeapFastImportArray implements KLUE {
             //every entry is read out in order by key as arrayof values
             if (t.key != prev.key) {
                 if (REMOVE_DUPLICATES) {
-                    pl = new PositionList(t.value);
-                    pl.sortAndRemoveDuplicates();
-                    rocksklue.put(t.key, pl.toArrayListLong());
+                    if (t.value != null) {
+                        pl = new PositionList(t.value);
+                        pl.sortAndRemoveDuplicates();
+                        rocksklue.put(t.key, pl.toArrayListLong());
+                    }
                 } else {
                    rocksklue.put(t.key, t.value);
                 }
@@ -458,7 +477,13 @@ public class MemoryKlueHeapFastImportArray implements KLUE {
             }
 
             prev = t;
-        }
+
+            if (loopy % PERIOD == 0){
+                LogStream.stderr.printlnTimeStamped("parsed through array "+loopy/1000000.0+" M times  :: k = "+k);
+            }
+            loopy++;
+
+        } // END  while hasNext()
         return (numKmersDumped+=k);
     }
 

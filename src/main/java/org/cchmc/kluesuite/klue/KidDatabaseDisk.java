@@ -4,16 +4,18 @@ import org.cchmc.kluesuite.TimeTotals;
 import org.cchmc.kluesuite.binaryfiledirect.UnsafeFileReader;
 import org.cchmc.kluesuite.binaryfiledirect.UnsafeFileWriter;
 import org.cchmc.kluesuite.binaryfiledirect.UnsafeMemory;
+import org.cchmc.kluesuite.klat.KmerSequence;
+import org.cchmc.kluesuite.klue.kiddatabase.GetDnaBitStringFragmentKey;
 import org.cchmc.kluesuite.rocksDBklue.RocksDbKlue;
 
+import java.io.BufferedReader;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.zip.DataFormatException;
 
+import static java.lang.System.exit;
 import static java.lang.Thread.sleep;
 
 /**
@@ -26,6 +28,8 @@ import static java.lang.Thread.sleep;
  * Note that DnaBitStrings are saved, just with an empty MyFixedBitSet
  *
  * Needs unsafe methods and
+ *
+ * TODO dumpt to text does not include exceptions array
  */
 public class KidDatabaseDisk extends KidDatabaseMemory {
 
@@ -33,6 +37,10 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
      * If KidDatabaseDisk primary file is locked, wait this many times to open
      */
     private static final int MAX_SECOND_TO_WAIT = 1000;
+
+    //Variable to set true if using an abridged import method
+    public static boolean importSpecial = false;
+    public static int offset = 0;
 
     public static boolean DEBUG = false;
 
@@ -68,7 +76,12 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
      */
     private KidDatabaseDisk(){
         //for use with loadFromFileUnsafe() builder
+        super();
+        sequenceLength.add(0);
+        exceptionsArr = new ArrayList<HashMap<Integer,Character>>();
+        exceptionsArr.add(new HashMap<Integer,Character>());
     }
+
 
     public KidDatabaseDisk(String KidFile, String RocksFile, boolean readonly){
         super();
@@ -106,7 +119,12 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
         //Assert that index  = sequenceLength.size()
         while(sequenceLength.size() < index ){
             sequenceLength.add(0);
+            sequenceLength.add(0);
         }
+
+        if ( sequenceLength.size() != exceptionsArr.size())
+           System.err.println("DEBUG HERE");
+
         if (sequenceLength.size() == index) {
             sequenceLength.add(seq.length());
         } else {
@@ -119,17 +137,29 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
         if (DEBUG) System.out.println("Constructing DnaBitString for kid\t" + index + "\t" + tt.toHMS());
         DnaBitString buddy = null;
         try {
-
             buddy = new DnaBitString(seq);
-            //longs = buddy.compressed.toLongArray();
+            longs = buddy.compressed.toLongArray();
 
         } catch (DataFormatException e) {
             e.printStackTrace();
         }
 
-//        storeSequence128(longs, index);
-        storeSequence(index,buddy);
-        System.out.println("Import for\t" + index + "\tfinished\t" + tt.toHMS());
+        if (buddy == null) {
+            exceptionsArr.add(new HashMap<>());
+        }else {
+            exceptionsArr.add(buddy.exceptions);
+        }
+        storeSequence128(longs, index);
+//        storeSequence(index,buddy);
+
+
+        int PERIOD_ANNOUNCE = 100 * 1000;
+        if (!KidDatabaseMemory.squelch) {
+            System.out.println("Import for\t" + index + "\tfinished\t" + tt.toHMS());
+        }
+        if (index %  PERIOD_ANNOUNCE == 2){
+            System.err.println("\tFinished processing kid\t"+this.last+"\t"+tt.toHMS());
+        }
     }
 
     /**
@@ -144,33 +174,33 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
 
             int chunks = (len - 1) / NUM_LONG_IN_CHUNK + 1;
             int position;
-            locationKey key;
+            GetDnaBitStringFragmentKey key;
             long[] writeMe = new long[4];
 
             int chunk;
             for (chunk = 0; chunk < chunks-1; chunk++) {
                 position = chunk * 128;
-                key = new locationKey(index, position);
+                key = new GetDnaBitStringFragmentKey(index, position);
                 for (int k = 0; k < 4; k++) {
                     writeMe[k] = longs[k + position / 32];
                 }
 
-                System.err.println(key+"\t"+key.key+"\t"+ Arrays.toString(writeMe));
-                sequence128db.put(key.key, RocksDbKlue.longArrayToBytes(writeMe));
+//                System.err.println(key+"\t"+key.key+"\t"+ Arrays.toString(writeMe));
+                sequence128db.put(key.toBytes(), RocksDbKlue.longArrayToBytes(writeMe));
             }
 
             //last chunk may be short
             position = chunk * 128;
-            key = new locationKey(index, position);
+            key = new GetDnaBitStringFragmentKey(index, position);
             for (int k = 0; k < 4; k++) {
                 if (k + position / 32 < longs.length){
-                    writeMe[k] = longs[k + position / 32];}
-                else {
+                    writeMe[k] = longs[k + position / 32];
+                } else {
                     writeMe[k] = 0L;
                 }
             }
 
-            sequence128db.put(key.key, RocksDbKlue.longArrayToBytes(writeMe));
+            sequence128db.put(key.toBytes(), RocksDbKlue.longArrayToBytes(writeMe));
         }
     }
 
@@ -224,45 +254,77 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
 
     }
 
+    @Override
+    protected void addSequenceLength(int length) {
+            sequenceLength.add(length);
+    }
+
+
     public int getSequenceLength(int index){
         return sequenceLength.get(index);
     }
 
     @Override
     public DnaBitString getSequence(int myKID) {
-        if(myKID > last)  return null;
+        if(myKID > last && !importSpecial)  return null;
         ArrayList<ArrayList<Long>> longs = new ArrayList<>();
 
-        int len = getSequenceLength(myKID); //number of letters
+        int len;
+        if (importSpecial)
+            len = getSequenceLength(myKID - offset);
+        else
+            len = getSequenceLength(myKID); //number of letters
+        //System.err.println("\tLength\t"+len);
+
+        if (len == 0) return null;
+
+//        if (myKID == 37 || myKID == 38) {
+//            String debug = "HERE";
+//        }
 
         int chunks = (len - 1) / NUM_BASE_IN_CHUNK + 1;
         int position;
-        locationKey key;
+        GetDnaBitStringFragmentKey key;
         long[] writeMe = new long[4];
 
         int chunk;
+        //Lookup all chunks, write to 2D array
         for (chunk = 0; chunk < chunks; chunk++) {
             position = chunk * 128;
-            key = new locationKey(myKID, position);
-            longs.add(sequence128db.get(key.key));
+            key = new GetDnaBitStringFragmentKey(myKID, position);
+            longs.add(sequence128db.get(key.toBytes()));
         }
 
         int num_longs = NUM_LONG_IN_CHUNK*longs.size();
         long[] result = new long[num_longs];
         int z=0;
+//        System.err.println("\tLongs\t"+longs);
+
+        //Write all results to output array (i.e. flatten)
         for (int k=0; k<longs.size();k++){
-            for (int j=0; j < longs.get(k).size(); j++){
-                result[z] = longs.get(k).get(j);
-                z++;
+//            System.err.println("\tLongs[k]\t"+longs.get(k));
+            if (longs.get(k) != null) {
+                for (int j = 0; j < longs.get(k).size(); j++) {
+                    result[z] = longs.get(k).get(j);
+                    z++;
+                }
             }
         }
 
         DnaBitString result2 = new DnaBitString(result,len);
-        result2.exceptions = exceptionsArr.get(myKID);
+        if (importSpecial)
+            result2.exceptions = exceptionsArr.get(myKID-offset);
+        else
+            result2.exceptions = exceptionsArr.get(myKID);
         return result2;
     }
 
 
+    public KmerSequence getKmerSequence(int myKID, int from, int to, boolean reverse) throws Exception {
+        //TODO OPTIMIZATION  ISSUE #90  implement to make efficiency; do not need to convert to String
+        //TODO in release, add to template
+        return null;
+    }
 
     @Override
     public String getSequence(int myKID, int from, int to, boolean reverse) throws Exception {
@@ -285,14 +347,13 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
 //        int sz = toChunk - fromChunk + 1;
         int sz = fromChunk - toChunk +1;
 
-        //TODO
         long[] stretch = new long[sz*4];
         int stretchStart = (toChunk) * NUM_BASE_IN_CHUNK;
 
         for (int k = 0; k < sz; k++ ){
 
-            locationKey key = new locationKey(myKID, (toChunk+k)*128);
-            ArrayList<Long> chunk = sequence128db.get(key.toLong());
+            GetDnaBitStringFragmentKey key = new GetDnaBitStringFragmentKey(myKID, (toChunk+k)*128);
+            ArrayList<Long> chunk = sequence128db.get(key.toBytes());
             for( int z=0; z<4; z++){
                 stretch[4*k+z] = chunk.get(z);
             }
@@ -373,8 +434,10 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
         total+=UnsafeMemory.SIZE_OF_INT;
 
         //arrays
-        total+=UnsafeMemory.getWriteUnsafeSize(nameIndex,UnsafeMemory.ARRAYLIST_STRING_TYPE);
-        total+=UnsafeMemory.getWriteUnsafeSize(entries,UnsafeMemory.ARRAYLIST_KID_TYPE);
+        int debug =UnsafeMemory.getWriteUnsafeSize(nameIndex,UnsafeMemory.ARRAYLIST_STRING_TYPE);
+        total+=debug;
+        debug+=UnsafeMemory.getWriteUnsafeSize(entries,UnsafeMemory.ARRAYLIST_KID_TYPE);
+        total+=debug;
         total+=UnsafeMemory.getWriteUnsafeSize(kingdoms,UnsafeMemory.HASHMAP_INTEGER_CHARACTER_TYPE);
 
         //No longer stored in memory
@@ -534,6 +597,7 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
         exceptionsArr = new ArrayList<>();
         for (int z=0; z < arrSize; z++){
             um.getInt(); //peel byte header
+
             exceptionsArr.add(   (HashMap<Integer,Character>) um.get(UnsafeMemory.HASHMAP_INTEGER_CHARACTER_TYPE)  );
         }
 
@@ -556,6 +620,26 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
      */
     public void shutDown(){
         sequence128db.shutDown();
+    }
+
+
+
+    public static KidDatabaseDisk loadFromFnaFile(String filename, int numExpected, String RocksDB) {
+        KidDatabaseDisk result;
+
+        result = new KidDatabaseDisk();
+        KidDatabaseDisk.PERIOD = 1000 * 1000;
+        try {
+            result.importFnaNoSequencesStored(filename, numExpected);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        result.exceptionsArr = new ArrayList<HashMap<Integer,Character>>();
+        for (int k=0; k< result.nameIndex.size(); k++) result.exceptionsArr.add(new HashMap<Integer,Character>());
+        result.sequence128db = new RocksDbKlue(RocksDB,true);
+
+        return result;
     }
 
 
@@ -653,58 +737,135 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
         }
     }
 
+    /**
+     * only imports sequences in correct KID range based on FNA file
+     * @param filename
+     * @param start
+     * @param end
+     */
+    public void importFnaBitSequences(String filename, int start, int end) {
+
+            int currentKID = -1;
+            SuperString currentSeq = new SuperString();
+            //String currentName = "";
+            boolean ignore = true; //do not write empty sequence to database
+
+            TimeTotals tt = new TimeTotals();
+            tt.start();
+
+            System.out.println("\nFNA import begins " + tt.toHMS() + "\n");
+            try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+
+                for (String line; (line = br.readLine()) != null; ) {
+
+                    if (debug) {
+                        System.err.println("Single line:: " + line);
+                    }
+
+                    // if blank line, it does not count as new sequence
+                    if (line.trim().length() == 0) {
+                        if (debug) System.err.println("           :: blank line detected  ");
+
+                        if (!ignore)
+                            if(currentKID >= start && currentSeq.length() > 0) {
+                                storeSequence(currentKID, currentSeq, tt);
+                            } else {
+                                sequenceLength.add(currentSeq.length());
+                                exceptionsArr.add(new HashMap<>());
+                            }
+
+                        else if (!ignore) {
+                            sequenceLength.add(currentSeq.length());
+                            exceptionsArr.add(new HashMap<>());
+                        }
+                        ignore = true;
+
+                        // if line starts with ">", then it is start of a new reference sequence
+                    } else if (line.charAt(0) == '>') {
+                        if (debug) System.err.println("           :: new entry detected  " + line);
+
+                        // save previous iteration to database
+                        if (!ignore && currentSeq.length() > 0) {
+                            storeSequence(currentKID, currentSeq, tt);
+                        } else if (!ignore) {
+                            sequenceLength.add(currentSeq.length());
+                            exceptionsArr.add(new HashMap<>());
+                        }
+                        // initialize next iteration
+                        if (indexOf(line.trim()) == -1) {
+                            //original.addAndTrim(new Kid(line.trim()));
+                            //addNewKidEntry(line);
+                            add(new Kid(line.trim()));
+                            if (getLast()==start || (getLast()== 1 && start == 1)){
+                                System.err.println("Found KID\t" + currentKID + "\tbit string import started");
+                            }
+                        }
+
+                        currentKID = getKid(line.trim()); // original.indexOf(line.trim());
+                        if (currentKID == -1) {
+                            System.err.println("This sequence not found in database : " + line);
+                            listEntries(0);
+                            exit(0);
+                        }
+                        //currentSeq = "";
+
+                        currentSeq = new SuperString();
+
+                        ignore = false;
+                    } else {
+                        currentSeq.addAndTrim(line.trim());
+                    }
 
 
-    public class locationKey{
-        int kid;
+                    if (currentKID >= end){
+                        break;
+                    }
+                } //end for
 
-        /**
-         * location is position in the reference sequence
-         * or coordinate 0 to X, where X is length of reference sequence
-         */
-        int location;
+                //write last
+                if (!ignore && currentKID >= start && currentSeq.length() > 0) {
+                    storeSequence(currentKID, currentSeq, tt);
+                }
+//                else if (!ignore) {
+//                    sequenceLength.add(currentSeq.length());
+//                    exceptionsArr.add(new HashMap<>());
+//                }
+                br.close();
 
-        long key;
+            }catch (FileNotFoundException e1) {
+                e1.printStackTrace();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
 
-//        ByteBuffer bb = ByteBuffer.allocate(bytes.length);
-//            bb.put(bytes);
-//            bb.position(0);
-//            for (int k = 0; k < (bytes.length/8); k++) {
-//            result.addAndTrim(bb.getLong());
-//        }
+    }
 
+    public void importKidDBText(String s) {
 
-        public locationKey(int kid, int position){
-            this.kid = kid;
-            location = position;
-            key = toLong();
+        try(BufferedReader br = new BufferedReader(new FileReader(s))) {
+            for (String line; (line = br.readLine()) != null; ) {
+                String[] pieces = line.split("\t");
+                add(new Kid(pieces[0]));
+                sequenceLength.add(Integer.parseInt(pieces[1]));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+        return;
 
-        private long toLong() {
-            long x = (long) kid;
-            x = x << 32;
-            return (x += location);
-        }
 
-        public locationKey(long number){
-            key = number;
-            long shifter = number >> 32;
-            kid = (int) shifter;
-            shifter = shifter << 32;
-            number -= shifter;
-            location = (int) number;
-        }
 
-        public int getKid(){
-            return kid;
-        }
+    }
 
-        public int getLocation(){
-            return location;
-        }
-        public String toString(){
-            return "kid\t"+kid+"\tposition\t"+location;
-        }
+    public HashMap<Integer, Character> getExceptions(int z) {
+        if (z-offset <= last)
+            return exceptionsArr.get(z-offset);
+        else
+            return null;
+    }
+
+    public void putExceptions(int z, HashMap<Integer, Character> tempy) {
+        exceptionsArr.add(z, tempy);
     }
 
 
@@ -769,4 +930,232 @@ public class KidDatabaseDisk extends KidDatabaseMemory {
         }
 
     }
+
+
+    public void startNewPiecemail(int piece){
+        sequence128db.shutDown();
+        sequence128db = new RocksDbKlue(rocksDbKlueFileName+"."+piece,false);
+    }
+
+
+    public void processPiecesmailRange(int begin, int end, String filename) {
+
+
+        int currentKID = -1;
+        SuperString currentSeq = new SuperString();
+        //String currentName = "";
+        boolean ignore = true; //do not write empty sequence to database
+
+        //skipping is holdover from copying code.  Here, it does nothing.
+        boolean skipping = false;
+//        boolean debug = false;
+
+        TimeTotals tt = new TimeTotals();
+        tt.start();
+
+        System.out.println("\nFNA import begins " + tt.toHMS() + "\n");
+        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+
+            for (String line; (line = br.readLine()) != null; ) {
+
+                if (debug) {
+                    System.err.println("Single line:: " + line);
+                }
+
+                // if blank line, it does not count as new sequence
+                if (line.trim().length() == 0) {
+                    if (debug) {
+                        System.err.println("           :: blank line detected  ");
+                    }
+                    if (!skipping) {
+                        if (!ignore) {
+                            if (begin <= currentKID && currentKID < end) {
+                                storeSequence(currentKID, currentSeq, tt);
+                            }
+                        }
+                    }
+                    ignore = true;
+
+                    // if line starts with ">", then it is start of a new reference sequence
+                } else if (line.charAt(0) == '>') {
+                    if (debug) {
+                        System.err.println("           :: new entry detected  " + line);
+                    }
+                    // save previous iteration to database
+
+                    if (!skipping) {
+                        if (!ignore) {
+                            if (begin <= currentKID && currentKID < end) {
+                                storeSequence(currentKID, currentSeq, tt);
+                            }
+                        }
+
+                        // initialize next iteration
+
+                        //ADD skipped since database exists
+//                        if (indexOf(line.trim()) == -1) {
+//                            //original.addAndTrim(new Kid(line.trim()));
+//                            //addNewKidEntry(line);
+//                            add(new Kid(line.trim()));
+//                        }
+
+                        currentKID = getKid(line.trim()); // original.indexOf(line.trim());
+                        if (currentKID == -1) {
+                            System.err.println("This sequence not found in database : " + line);
+                            listEntries(0);
+                            exit(0);
+                        }
+                        //currentSeq = "";
+
+                        currentSeq = new SuperString();
+
+                        ignore = false;
+                    }
+                } else {
+                    if (!skipping) {
+                        //currentSeq += line.trim();
+                        currentSeq.addAndTrim(line.trim());
+                    }
+                }
+
+            } //end for
+
+            br.close();
+
+            if (!ignore) {
+                if (begin <= currentKID && currentKID < end) {
+                    storeSequence(currentKID, currentSeq, tt);
+                }
+            }
+        } catch (FileNotFoundException e) {
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public static KidDatabaseDisk loadFileFromText(String filename) {
+        KidDatabaseDisk result = new KidDatabaseDisk();
+        result.fileName = filename;
+        filename += filename+".txt";
+        try(BufferedReader br = new BufferedReader(new FileReader(filename+".txt"))) {
+            for (String line; (line = br.readLine()) != null; ) {
+                String[] pieces = line.split("\t");
+                result.add(new Kid(pieces[0]));
+                result.sequenceLength.add(Integer.parseInt(pieces[1]));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        result.sequence128db = new RocksDbKlue(filename+".disk", false);
+        return result;
+    }
+
+
+    public static KidDatabaseDisk loadFileFromText(String filename, int chunk) {
+//        String kidDbName = args[0]+".kidDB."+String.format("%02d", chunk);
+//        String rocks128Name = args[0]+".kidDB.disk."+String.format("%02d", chunk);
+//        String rocksName = args[0]+".kmer."+String.format("%02d", chunk);;
+//        String startEndName = args[0]+".startEnd."+String.format("%02d", chunk);
+
+        KidDatabaseDisk result = new KidDatabaseDisk();
+        result.fileName = filename;
+        try(BufferedReader br = new BufferedReader(new FileReader(filename+".txt"))) {
+            for (String line; (line = br.readLine()) != null; ) {
+                String[] pieces = line.split("\t");
+                result.add(new Kid(pieces[0]));
+                result.sequenceLength.add(Integer.parseInt(pieces[1]));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        result.sequence128db = new RocksDbKlue(filename+".disk."+String.format("%02d", chunk), false);
+        return result;
+    }
+
+
+
+    /**
+     * imports sequences in correct KID range based on FNA file; presumes KID database text import
+     * ExceptionsArr and SequenceLength only store data for the target sequences.
+     * Offset = (start -1), so when read, need to add +start-1 to KID
+     *
+     * Returns number of sequences imported (may be less than end)
+     *
+     * @param filename
+     * @param start
+     * @param end
+     */
+    public int importOnlyFnaBitSequences(String filename, int start, int end) {
+        int currentKID = 0;
+        int result = 0;
+//        String currName = null;
+        boolean store = false;
+        SuperString seq = new SuperString();
+        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+
+            for (String line; (line = br.readLine()) != null; ) {
+                if (line.charAt(0) == '>'){
+                    if (currentKID >= start) {
+                        if (seq.length() > 0) {
+//                            System.err.print("KID\t"+currentKID+"\thas length\t"+seq.length());
+                            storeOnlyBitSequence(currentKID, seq);
+                        } else {
+                            sequenceLength.add(0);
+                            exceptionsArr.add(new HashMap<Integer,Character>());
+                        }
+                        result++;
+                        seq = new SuperString();
+//                        currName = line.trim().substring(1);
+                        store = true;
+                    }
+                    currentKID++;
+                } else if (store) {
+                    seq.addAndTrim(line);
+                }
+                if (currentKID >= end) break;
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return result;
+    }
+
+    private void storeOnlyBitSequence(int index, SuperString seq) {
+        int kid = index;
+        long[] longs = null;
+
+        DnaBitString buddy = null;
+        try {
+            buddy = new DnaBitString(seq);
+            longs = buddy.compressed.toLongArray();
+
+        } catch (DataFormatException e) {
+            e.printStackTrace();
+        }
+
+        if (buddy == null) {
+            exceptionsArr.add(new HashMap<>());
+            sequenceLength.add(0);
+        }else {
+            sequenceLength.add(buddy.getLength());
+            exceptionsArr.add(buddy.exceptions);
+        }
+        storeSequence128(longs, index);
+
+        int PERIOD_ANNOUNCE = 100 * 1000;
+        if (!KidDatabaseMemory.squelch) {
+            System.out.println("Import for\t" + index + "\tfinished\t");
+        }
+        if (index %  PERIOD_ANNOUNCE == 2){
+            System.err.println("\tFinished processing kid\t"+index+"\t");
+        }
+
+    }
+
+
 }

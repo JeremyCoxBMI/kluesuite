@@ -1,6 +1,8 @@
 package org.cchmc.kluesuite.klat2;
 
 import org.cchmc.kluesuite.klat.Seed;
+import org.cchmc.kluesuite.masterklue.KLATsettings;
+import org.junit.Assert;
 
 import javax.xml.crypto.Data;
 import java.util.ArrayList;
@@ -211,7 +213,7 @@ public class SuperSeed extends Seed {
      * @param seed1
      * @return      True if successfully merged
      */
-    private boolean mergeToMeIfAble(Seed seed1){
+    private boolean mergeToMeIfAble(Seed seed1) throws DataFormatException {
         boolean result = false;
         //keep seeds sorted
         int k;
@@ -258,7 +260,14 @@ public class SuperSeed extends Seed {
     }
 
 
-    public static boolean mayMerge(Seed a, Seed b, int kmerSize) {
+    public static boolean mayMerge(Seed a, Seed b, int kmerSize) throws DataFormatException {
+        try {
+            Assert.assertTrue(a.adjacency >= KLATsettings.MIN_SEED_ADJACENCY);
+            Assert.assertTrue(b.adjacency >= KLATsettings.MIN_SEED_ADJACENCY);
+        } catch (AssertionError e) {
+            throw new DataFormatException("SuperSeed::mayMerge called when a seed does not meet min_seed_adjacency");
+        }
+
         return Seed.mayMergeAgglomeratedSeeds(a,b,kmerSize);
 
 //        boolean result = false;
@@ -314,7 +323,7 @@ public class SuperSeed extends Seed {
 //                REF_WHISKER_NO_OVERLAP = (a.end + kmerSize) - 1 <= b.start;  //EXCLUSIVE vs INCLUSIVE: add 1
 //            }
 //
-//            // range b:[r,s] cannot overlap a:[w,x]
+//            // range b:[r,s] cannot overlap a:[w,nextOffset]
 //            // Stop is exclusive, so different comparators needed
 //            // query are allowed to be close (adjacent): could be a deletion
 //            QUERY_OVERLAP = (
@@ -351,7 +360,7 @@ public class SuperSeed extends Seed {
      * @param kmerSize
      * @return          combined SuperSeed, otherwise null
      */
-    public static SuperSeed mergeIfAble(Seed a, Seed b, int kmerSize){
+    public static SuperSeed mergeIfAble(Seed a, Seed b, int kmerSize) throws DataFormatException {
 
         if (b == null || a == null){
             return null;

@@ -21,12 +21,12 @@ public class KmerSequence {
      * due to gaps, there may be fewer actual kmers stored than there are indexes
      * this maps sequence index to index of ArrayList<Kmer31> kmers
      */
-    int[] indexToInternalIndex;
+    public int[] indexToInternalIndex;
 
     /**
      * maps index of kmer to sequence index
      */
-    int[] internalIndexToIndex;
+    public int[] internalIndexToIndex;
 
     /**
      * Number of kmers in the sequence
@@ -198,6 +198,16 @@ public class KmerSequence {
     }
 
     /**
+     * returns all positions in kmer sequence
+     * @return
+     */
+    public ArrayList<Long> getAllForwardArrayList() {
+        ArrayList<Long> result = new ArrayList<Long>(kmers.size());
+        for (int k=0; k<kmers.size(); k++)     result.add(kmers.get(k).toLong());
+        return result;
+    }
+
+    /**
      * returns all positions in kmer sequence in reverse
      * Typically, this function is not needed for alignments.  Included as complement of the other.
      * @return
@@ -253,5 +263,9 @@ public class KmerSequence {
         long[] result = new long[kmers.size()];
         for(int k=0; k<kmers.size();k++)    result[k] = kmers.get(k).toLong();
         return result;
+    }
+
+    public int getLength() {
+        return length;
     }
 }

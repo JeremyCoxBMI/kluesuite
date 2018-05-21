@@ -90,22 +90,22 @@ public class TimeTotals {
         String result ="";
         //hours
         long temp = ns / (60L*60L*1000L*1000L*1000L);
-        result += String.format("%03d", (temp))+":";
+        result += String.format("%03d", (temp))+" H ";
         //minutes
         temp = ns / (60L * 1000L*1000L*1000L) % 60L;
-        result += String.format("%02d", (temp))+":";
+        result += String.format("%02d", (temp))+" M ";
         //seconds
         temp = ns / (1000L*1000L*1000L) % 60L;
-        result += String.format("%02d", (temp))+":";
+        result += String.format("%02d", (temp))+" s ";
         //milliseconds
         temp = ns / (1000L*1000L) % (1000L);
-        result += String.format("%03d", (temp))+":";
+        result += String.format("%03d", (temp))+" ms ";
         //microseconds
         temp = ns / (1000L)% (1000L);
-        result += String.format("%03d", (temp))+":";
+        result += String.format("%03d", (temp))+" us ";
         //nanoseconds
         temp = ns % (1000L);
-        result += String.format("%03d", (temp));
+        result += String.format("%03d", (temp))+" ns";
 
         return result;
     }
@@ -114,7 +114,8 @@ public class TimeTotals {
     * Text formatting for hours mins secs msecs usecs nsecs
     */
     public String toHMSuS() {
-        return toHMSuS(timePassedFromStart());
+        String s = toHMSuS(timePassedFromStart());
+        return s;
     }
 
     /**

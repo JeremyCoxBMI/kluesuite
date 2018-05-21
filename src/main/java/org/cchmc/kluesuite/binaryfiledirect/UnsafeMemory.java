@@ -92,6 +92,10 @@ public class UnsafeMemory {
     public static final long[] CHAR_TYPE = new long[]{CHAR_UID};
     public static final long[] HASHMAP_INTEGER_CHARACTER_TYPE = new long[]{HASHMAP_UID, INT_UID, CHAR_UID};
     public static final long[] ARRAYLIST_DNABITSTRING_TYPE = new long[]{ARRAYLIST_UID,DnaBitString.serialVersionUID};
+
+    //can we add Array_STRING that saves as an arraylist?
+    //can we add Array_KID that saves as an arraylist?
+
     public static final long[] ARRAYLIST_STRING_TYPE = new long[]{ARRAYLIST_UID, STRING_UID};
     public static final long[] ARRAYLIST_KID_TYPE = new long[]{ARRAYLIST_UID,KID_UID};
     public static final long[] ARRAYLIST_INT_TYPE = new long[]{ARRAYLIST_UID,INT_UID};
@@ -386,7 +390,11 @@ public class UnsafeMemory {
         } else if (serial[0] == INT_UID) {
             result = SIZE_OF_INT;
         } else if (serial[0] == KID_UID) {
-            result = ((Kid) obj).getWriteUnsafeSize();
+            if (obj == null) {
+                result = (new Kid("")).getWriteUnsafeSize();
+            } else {
+                result = ((Kid) obj).getWriteUnsafeSize();
+            }
         } else if (serial[0] == KIDDATABASE_NO_DNABITSTRING_TYPE){
 //            result+=UnsafeMemory.getWriteUnsafeSize(fileName, UnsafeMemory.STRING_TYPE);
 //            result+=UnsafeMemory.SIZE_OF_INT;
@@ -503,7 +511,8 @@ public class UnsafeMemory {
         } else if (serial[0] == INT_UID) {
             putInt((int) obj);
         } else if (serial[0] == KID_UID) {
-            ((Kid) obj).writeUnsafe(this);
+            if (obj == null) (new Kid("")).writeUnsafe(this);
+            else ((Kid) obj).writeUnsafe(this);
 //        } else if (serial[0] == HASHMAP_INTEGER_TREEMAP_INTEGER_ARRAY_VARIANT_UID){
 //            //header
 //            //putInt(getWriteUnsafeSize(obj,HASHMAP_INTEGER_TREEMAP_INTEGER_ARRAY_VARIANT_TYPE));
@@ -768,7 +777,7 @@ public class UnsafeMemory {
      */
     private <E> void putArrayList(ArrayList<E> arr, long[] serial)
     {
-        //String x = type.getClass().getSimpleName();
+        //String nextOffset = type.getClass().getSimpleName();
         int total = getWriteUnsafeSize(arr, serial);
         //header
 
@@ -813,7 +822,7 @@ public class UnsafeMemory {
      */
     private static <E> ArrayList<E> getArrayList(UnsafeMemory um, long[] serial) throws ClassCastException
     {
-        //String x = type.getClass().getSimpleName();
+        //String nextOffset = type.getClass().getSimpleName();
         int total = 0;
 
         ArrayList<E> result = new ArrayList<>();

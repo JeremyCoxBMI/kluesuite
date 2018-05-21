@@ -57,7 +57,14 @@ public class Prefix16 {
         return temp;
     }
 
-    public static String intToPrefix(int k){
+
+    /**
+     * Generate a DNA string based on integer representation
+     * @param k
+     * @return
+     */
+
+    public static String intToPrefixString(int k){
         String result = "";
         if (0 <= k && k < 16){
             result += hm.get(k / 4);
@@ -66,15 +73,62 @@ public class Prefix16 {
         return result;
     }
 
-    public static String kmer31ToPrefix(Kmer31 kmer){
-        return intToPrefix( (int) (kmer.toLong() / (1L << 58)) );
+
+    // THREE KINDS OF DATA
+    //  long or Kmer31 (same)
+    //  prefix integer
+    //  prefix string
+    //  prefix byte, as in the first byte of a long byte array
+
+    public static String kmer31ToPrefixString(Kmer31 kmer){
+        return intToPrefixString( (int) (kmer.toLong() / (1L << 58)) );
     }
 
-    public static int kmer31ToInt(Kmer31 kmer){
+    public static int kmer31ToPrefixInt(Kmer31 kmer){
         return  (int) (kmer.toLong() >> 58);
     }
 
     public static int longToInt(long key) {
         return (int) (key >> 58);
     }
+
+    public static Kmer31 prefixIntToKmer31(int p){
+        long p2 = (long) p;
+        p2 = p2 << 58;
+        return new Kmer31(p2);
+    }
+
+    /**
+     * Convert a prefix integer to the long representation of the corresponding K-mer at lower bound of prefix
+     * (That is, append all zeroes to prefix)
+     * @param p
+     * @return
+     */
+
+    public static long prefixIntToKmer31Long(int p) {
+        return (long) p << 58;
+    }
+
+    /**
+     * Using byte representation saves time when using raw bytes from RocksIterator
+     * @param key   this is the 8 byte array representation of a long integer or Kmer31
+     * @return
+     */
+    public static int bytesToPrefixInt(byte[] key) {
+        return byteToPrefixInt(key[0]);
+    }
+
+
+    /**
+     * @param key   a byte, aka 8-bit signed int;  in java a byte is an integer
+     * @return
+     */
+    public static int byteToPrefixInt(byte key) {
+//        int r = ((int)key);
+//        r = r & 63;
+//        r = r >> 2;
+        return (((int)key) & 63) >> 2;   //63 is 00111111, skips the first two bits
+    }
+
+
 }

@@ -145,7 +145,7 @@ public class TestPosition {
         Assert.assertNotEquals(r.getMyKID(), -268435455);
         Assert.assertNotEquals(r.getMyKID(), 268435455);
 
-//        Position x = new Position( 1 << 28 + 2000, 101010101);
+//        Position nextOffset = new Position( 1 << 28 + 2000, 101010101);
         Position x = new Position( (1 << 28)+2000, 101010101);
 
         System.out.println("Testing myKid() stress conditions");

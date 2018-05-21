@@ -3,6 +3,7 @@ package org.cchmc.kluesuite;
 import org.cchmc.kluesuite.klat.Seed;
 import org.cchmc.kluesuite.klat2.SuperSeed;
 import org.cchmc.kluesuite.klue.Kmer31;
+import org.cchmc.kluesuite.masterklue.KLATsettings;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -113,8 +114,10 @@ public class TestSuperSeed {
         Assert.assertTrue(c.queryEnd == 200);
         Assert.assertTrue(c.start == 900);
         Assert.assertTrue(c.end == 1050);
-        Assert.assertTrue(c.isAdjacencyStreak());
-        Assert.assertTrue(c.adjacency == 100);
+        Assert.assertTrue(a.isAdjacencyStreak());
+        Assert.assertFalse(b.isAdjacencyStreak());
+        Assert.assertFalse(c.isAdjacencyStreak());
+        Assert.assertTrue(c.adjacency == 50);
         Assert.assertTrue(c.hits == 100);
         Assert.assertFalse(c.snp);
         Assert.assertTrue(c.indel);
@@ -126,23 +129,61 @@ public class TestSuperSeed {
 
     @Test
     public void testMayMerge(){
+        KLATsettings.MAX_SEED_QUERY_GAP = 40;
+        KLATsettings.MAX_SEED_REFERENCE_GAP = 40;
         Seed a = new Seed(100, 150, 900, 950, false, 50, 50, 1);
         Seed b = new Seed(160, 210, 960, 1010, false, 50, 50, 1);
         Seed c = new Seed(185, 235, 980, 1030, false, 50, 50, 1);
+        Seed d = new Seed(160+KLATsettings.MAX_SEED_QUERY_GAP, 210+KLATsettings.MAX_SEED_QUERY_GAP,
+                    960+KLATsettings.MAX_SEED_REFERENCE_GAP, 1010+KLATsettings.MAX_SEED_REFERENCE_GAP,
+                    false, 50, 50, 1);
+        try {
+            Assert.assertTrue(SuperSeed.mayMerge(a, c, 31));
+            //commutative property
+            Assert.assertTrue(SuperSeed.mayMerge(c, a, 31));
 
-        Assert.assertTrue(SuperSeed.mayMerge(a,c,31));
-        Assert.assertFalse(SuperSeed.mayMerge(a,b,31));
-        Assert.assertFalse(SuperSeed.mayMerge(b,c,31));
+            Assert.assertTrue(SuperSeed.mayMerge(a, b, 31));
+            Assert.assertFalse(SuperSeed.mayMerge(b, c, 31));
+            Assert.assertFalse(SuperSeed.mayMerge(a, d, 31));
+        } catch (DataFormatException e) {
+            Assert.assertTrue(false);
+        }
 
         SuperSeed z = null;
         try {
             z = SuperSeed.buildSuperSeed(Kmer31.KMER_SIZE, a, c);
+            Assert.assertFalse(SuperSeed.mayMerge(z,b,31));
         } catch (DataFormatException e) {
             e.printStackTrace();
             exit(0);
         }
 
-        Assert.assertFalse(SuperSeed.mayMerge(a,b,31));
+
+        //check reverse
+        a = new Seed(100, 150,  950, 900, true, 50, 50, 1);
+
+        //reverse and forward cannot merge
+        try {
+            Assert.assertFalse(SuperSeed.mayMerge(a, c, 31));
+
+        } catch (DataFormatException e) {
+            Assert.assertTrue(false);
+        }
+
+        b = new Seed(160, 210, 1010, 960, true, 50, 50, 1);
+        c = new Seed(185, 235, 1030, 980, true, 50, 50, 1);
+        d = new Seed(160+KLATsettings.MAX_SEED_QUERY_GAP, 210+KLATsettings.MAX_SEED_QUERY_GAP,
+                1010+KLATsettings.MAX_SEED_REFERENCE_GAP, 960+KLATsettings.MAX_SEED_REFERENCE_GAP,
+                true, 50, 50, 1);
+        try {
+            Assert.assertTrue(SuperSeed.mayMerge(a, c, 31));
+            Assert.assertTrue(SuperSeed.mayMerge(a, b, 31));
+            Assert.assertFalse(SuperSeed.mayMerge(b, c, 31));
+            Assert.assertFalse(SuperSeed.mayMerge(a, d, 31));
+        } catch (DataFormatException e) {
+            Assert.assertTrue(false);
+        }
+
     }
 
     @Test

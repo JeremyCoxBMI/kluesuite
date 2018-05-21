@@ -215,7 +215,7 @@ public class SmithWatermanOriginal {
 
             for (int j=0; j < columns.length()+1; j++){
                 if (table.get(k)[j] == null){
-                    stringo.add("x 0 | ");
+                    stringo.add("nextOffset 0 | ");
                 }
                 else {
                     if (table.get(k)[j].move == TableEntry.EMPTY) {

@@ -3,6 +3,8 @@ package org.cchmc.kluesuite.klat2;
 import org.cchmc.kluesuite.klat.Seed;
 import org.cchmc.kluesuite.klue.Kmer31;
 
+import java.util.ArrayList;
+
 /**
  * Created by jwc on 10/5/17.
  */
@@ -39,8 +41,8 @@ public class ExactMatches extends Box2 {
         super(s);
 //        cumulativeActualFastKlatScore = -1;
 //        cumulativeSmithWatermanScore = -1;
-        ecol += Kmer31.KMER_SIZE_MINUS_TWO;   //EXCLUSIVE to INCLUSIVE, EXTEND ONLY 30
-        erow += Kmer31.KMER_SIZE_MINUS_TWO;   //EXCLUSIVE to INCLUSIVE, EXTEND ONLY 30
+        ecol += Kmer31.KMER_SIZE_MINUS_ONE;   //EXCLUSIVE to INCLUSIVE, EXTEND ONLY 30
+        erow += Kmer31.KMER_SIZE_MINUS_ONE;   //EXCLUSIVE to INCLUSIVE, EXTEND ONLY 30
         type = BoxType.EXACT;
         //INCLUSIVE to INCLUSIVE (+1)
         cumulativeMinimumSWscore = prevMinSW + SmithWatermanTruncated2.MATCH * (ecol-scol+1);
@@ -54,6 +56,5 @@ public class ExactMatches extends Box2 {
         cumulativeActualFastKlatScore = prevFastKlatScore + (ecol-scol +1);
         cumulativeSmithWatermanScore = prevSWscore + SmithWatermanTruncated2.MATCH * (ecol-scol +1 );
     }
-
 
 }

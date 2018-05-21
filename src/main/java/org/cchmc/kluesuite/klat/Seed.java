@@ -3,6 +3,7 @@ package org.cchmc.kluesuite.klat;
 import org.cchmc.kluesuite.klue.KidDatabaseMemory;
 import org.cchmc.kluesuite.klue.Kmer31;
 import org.cchmc.kluesuite.klue.Position;
+import org.cchmc.kluesuite.klue.kiddatabase.KidDatabase;
 import org.cchmc.kluesuite.masterklue.KLATsettings;
 
 import java.util.ArrayList;
@@ -32,6 +33,12 @@ import java.util.Comparator;
  *                 DESIGN DECISION:  Reverse seeds have query sequence from least to greatest coordinates,
  *                                      But reference sequence coordinates are greatest to least
  *
+ *
+ * Class hierarchy ::   Seed --> SuperSeed
+ * In hinsight, would have been better to do
+ *      Seed --> Long Seed (all adjacent Seeds combined)
+ *           --> Super Seed
+ *           Unsure if Long See type checking is actually needed,; this may be unneeded
  */
 public class Seed implements Comparable<Seed>, Comparator<Seed> {
 
@@ -293,7 +300,6 @@ public class Seed implements Comparable<Seed>, Comparator<Seed> {
         this.fastKLATscore = Kmer31.KMER_SIZE;  //reading frame 31 for 1 base
     }
 
-
     /**
      * Extracts Position from the Seed
      * NOTE this includes only the START position
@@ -388,7 +394,7 @@ public class Seed implements Comparable<Seed>, Comparator<Seed> {
 
         QUERY_WHISKER = ((b.queryStart >= minAq && b.queryStart < maxAq) || (b.queryEnd > minAq && b.queryEnd <= maxAq));
 
-        // range b:[r,s] cannot overlap a:[w,x]
+        // range b:[r,s] cannot overlap a:[w,nextOffset]
         //Stop is exclusive, so different comparators needed
         QUERY_OVERLAP = ((a.queryStart < b.queryEnd && a.queryStart >= b.queryStart) ||
                 (a.queryEnd <= b.queryEnd && a.queryEnd > b.queryStart));
@@ -574,7 +580,7 @@ public class Seed implements Comparable<Seed>, Comparator<Seed> {
         //Adjacent seeds are adjacent, these must have a gap of at least 1
         boolean noOverlap = b.queryStart - a.queryEnd >= minGap;
 
-        boolean withinWhisker = b.queryStart < a.queryEnd + maxGap; //b starts within whisker
+        boolean withinWhisker = b.queryStart - a.queryEnd < maxGap; //b starts within whisker
 
 
 //        //ENDS are EXCLUSIVE
@@ -622,7 +628,7 @@ public class Seed implements Comparable<Seed>, Comparator<Seed> {
      * @return
      */
     public static boolean mayMergeAgglomeratedSeeds(Seed a, Seed b, int kmerSize){
-        //boolean result = false;
+        //Start is start of reference sequence, so if in Reverse, it will be greater than end
 
         if (a.myKid != b.myKid){
             return false;
@@ -639,44 +645,57 @@ public class Seed implements Comparable<Seed>, Comparator<Seed> {
             return false;
         }
 
-            //ENSURE seeds in correct order
-            //query always in increasing order
-        if (    (b.queryStart < a.queryStart)   ){
+        //ENSURE seeds in correct order
+        //query always in increasing order
+        if (b.queryStart < a.queryStart) {
             //result used as temporary value
             temp = a;
             a = b;
             b = temp;
         }
 
+        int aQueRightEdge;
         int aRefRightEdge;
-        int aQueRightEdge = a.queryEnd + KMER_SIZE_MINUS_ONE;
+        boolean withinWhisker;
 
-        //Issue #64
-        boolean noOverlap = aQueRightEdge < b.queryStart;
+        //overlap occurs when the seed coordinates overlap, not the K-mer edge
+        boolean noOverlap;
+        if (    !a.isReverse ) {
 
-        boolean withinWhisker = b.queryStart < a.queryEnd + KLATsettings.WHISKERS_LENGTH_ALIGNMENT; //b starts within whisker
 
-        if (a.isReverse){
-            aRefRightEdge = a.end - KMER_SIZE_MINUS_ONE;  //because EXCLUSIVE ==> INCLUSIVE
-            //noOverlap = noOverlap && a.end - b.start >= 1;
-            //Checking for reference or query overlap  Issue #65
-            noOverlap = noOverlap && aRefRightEdge > b.start;
-            //Checking seeds are close enough
-            //Whisker must extend to the next seed position or farther
-            withinWhisker = withinWhisker || b.start > a.end - KLATsettings.WHISKERS_LENGTH_ALIGNMENT; //b starts within whisker
+            aQueRightEdge = a.queryEnd + KLATsettings.MAX_SEED_QUERY_GAP;
+            aRefRightEdge = a.end + KLATsettings.MAX_SEED_REFERENCE_GAP;
+            withinWhisker = b.queryStart < aQueRightEdge
+                                &&
+                            b.start < aRefRightEdge;
+            //simplify code because a is to right of b
+//            noOverlap = !(
+//                            (a.start < b.start && b.start < a.end)
+//                                ||
+//                            (b.start < a.start && a.start < b.end)
+//                                ||
+//                            (a.queryStart < b.queryStart && b.queryStart < a.queryEnd)
+//                                ||
+//                            (b.queryStart < a.queryStart && a.queryStart < b.queryEnd)
+//                        );
+            noOverlap = !(
+                            (a.start < b.start && b.start < a.end)
+                                        ||
+                            (a.queryStart < b.queryStart && b.queryStart < a.queryEnd)
+            );
 
         } else {
-            aRefRightEdge = a.end + KMER_SIZE_MINUS_ONE;  //because EXCLUSIVE ==> INCLUSIVE
-            //Checking for reference or query overlap
-            noOverlap = noOverlap && aRefRightEdge < b.start;
-            //Checking seeds are close enough
-            //Whisker must extend to the next seed position or farther
-            withinWhisker = withinWhisker || b.start < a.end + KLATsettings.WHISKERS_LENGTH_ALIGNMENT; //b starts within whisker
-
+            aQueRightEdge = a.queryEnd + KLATsettings.MAX_SEED_QUERY_GAP;
+            aRefRightEdge = a.end - KLATsettings.MAX_SEED_REFERENCE_GAP;  //ref coord reversed
+            withinWhisker = b.queryStart < aQueRightEdge
+                    &&
+                    b.start > aRefRightEdge;
+            noOverlap = !(
+                            (a.start > b.start && b.start > a.end)
+                            ||
+                            (a.queryStart < b.queryStart && b.queryStart < a.queryEnd)
+                        );
         }
-        //ASSERTED early they match
-        // boolean kidMatch = (a.myKid == b.myKid);
-        // return noOverlap && withinWhisker && kidMatch;
 
         return noOverlap && withinWhisker;
     }
@@ -1004,10 +1023,10 @@ public class Seed implements Comparable<Seed>, Comparator<Seed> {
      * @return
      */
     public boolean isAdjacencyStreak(){
-        return (queryEnd - queryStart) == adjacency && Math.abs(start - end) == adjacency;
+        return Math.abs(queryEnd - queryStart) == adjacency && Math.abs(start - end) == adjacency;
     }
 
-    public ReferenceSequenceRequest toRefSeqRequest(KidDatabaseMemory myKidDB, int queryLength) {
+    public ReferenceSequenceRequest toRefSeqRequest(KidDatabase myKidDB, int queryLength) {
         return new ReferenceSequenceRequest(this, myKidDB, queryLength);
     }
 
@@ -1113,15 +1132,15 @@ public class Seed implements Comparable<Seed>, Comparator<Seed> {
 
             for (int k = 0; k < seeds.size(); k++) {
                 Seed query = seeds.get(k);
-//                Seed x = mergeIfAble(query, queryMax);
+//                Seed nextOffset = mergeIfAble(query, queryMax);
                 if (queryMax == null) {
                     //first time through loop
                     queryMax = query;
 
                     //if query or reference sequences match, use only one.
-//                } else if (x.myKid != -1) {  //Sentinel
+//                } else if (nextOffset.myKid != -1) {  //Sentinel
 //                    //merged seed is valid
-//                    result.addAndTrim(x);
+//                    result.addAndTrim(nextOffset);
                 } else if (seedsOverlap(query, queryMax)
                         ) {
                     //matching position

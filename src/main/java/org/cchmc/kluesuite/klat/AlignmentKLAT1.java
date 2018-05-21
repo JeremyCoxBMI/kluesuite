@@ -81,7 +81,7 @@ public class AlignmentKLAT1 {
     /**
      * Constant needed for conversions
      */
-    static long twoE60 = 1L << 60;
+    protected static long twoE60 = 1L << 60;
 
 
     /**
@@ -103,24 +103,24 @@ public class AlignmentKLAT1 {
     /**
      * Row labels for alignmentTable
      */
-    ArrayList<Integer> listKidRows;
+    protected ArrayList<Integer> listKidRows;
 
     /**
      * Row labels for alignmentTableRev
      */
-    ArrayList<Integer> listKidRowsRev;
+    protected ArrayList<Integer> listKidRowsRev;
 
 
     /**
      * Positions after looking up (KmerSequence kmers) in the database.
      * Order is important, the list of list is ordered by position in query (0 thru length - k + 1), then lists positions
      */
-    ArrayList<PositionList> posz;
+    protected ArrayList<PositionList> posz;
 
     /**
      * Positions after looking up (KmerSequence kmers) in the database, reverseStrand kmer
      */
-    ArrayList<PositionList> poszRev;
+    protected ArrayList<PositionList> poszRev;
 
     /**
      * Intermediate data structure used to build listKidRows
@@ -130,7 +130,7 @@ public class AlignmentKLAT1 {
      * because each row is forced to be tied to a specific KID
      * FORWARD
      */
-    HashMap<Integer, Integer> KIDtoCount;
+    protected HashMap<Integer, Integer> KIDtoCount;
 
     /**
      * Seeds are stored here after being calculated
@@ -143,33 +143,33 @@ public class AlignmentKLAT1 {
      * This is required in order to give multiple rows to a kmer.
      * REVERSE
      */
-    HashMap<Integer, Integer> KIDtoCountRev;
+    protected HashMap<Integer, Integer> KIDtoCountRev;
 
     /**
-     * This contains positions by KID x kmer lookup index
+     * This contains positions by KID nextOffset kmer lookup index
      * Note the kmer lookup index matches the indexing of KmerSequence, which excludes gaps.
      * Forward Direction
      */
-    Position[][] alignmentTable;
+    protected Position[][] alignmentTable;
 
 
     /**
-     * This contains positions by KID x kmer lookup index
+     * This contains positions by KID nextOffset kmer lookup index
      * Note the kmer lookup index matches the indexing of KmerSequence, which excludes gaps.
      * Reverse Direction
      */
-    Position[][] alignmentTableRev;
+    protected Position[][] alignmentTableRev;
 
     /**
      * Tracks whether the alignmentTable has been created and written.
      */
-    boolean calculated;
+    protected boolean calculated;
 
     /**
      * KLUE look up engine used to lookup sequences.
      */
     protected KLUE klue;
-    private ArrayList<PartialAlignment1> bestAlignments;
+    protected ArrayList<PartialAlignment1> bestAlignments;
 
     /**
      * query is required to construct the object
@@ -306,19 +306,19 @@ public class AlignmentKLAT1 {
 //                    // MAJOR BUG - do not want to lookup reverse kmers; we want to FIND matching kmers in reverseStrand
 //                    temp = poszRev.get(kmers.indexToInternalIndex[k]);
 //                    for (int m=0; m < temp.length();m++){
-//                        int x = temp.get(m).getMyKID();
+//                        int nextOffset = temp.get(m).getMyKID();
 //                        if ( temp.get(m).getFlag(Position.REVERSE) ){
 //                            //If reverse kmer
-//                            if( tempKIDtoCountRev.containsKey( x )){
-//                                tempKIDtoCountRev.put(x, tempKIDtoCountRev.get(x)+1);
+//                            if( tempKIDtoCountRev.containsKey( nextOffset )){
+//                                tempKIDtoCountRev.put(nextOffset, tempKIDtoCountRev.get(nextOffset)+1);
 //                            } else {
-//                                tempKIDtoCountRev.put(x, 1);
+//                                tempKIDtoCountRev.put(nextOffset, 1);
 //                            }
 //                        } else {
-//                            if( tempKIDtoCount.containsKey( x )){
-//                                tempKIDtoCount.put(x, tempKIDtoCount.get(x)+1);
+//                            if( tempKIDtoCount.containsKey( nextOffset )){
+//                                tempKIDtoCount.put(nextOffset, tempKIDtoCount.get(nextOffset)+1);
 //                            } else {
-//                                tempKIDtoCount.put(x, 1);
+//                                tempKIDtoCount.put(nextOffset, 1);
 //                            }
 //                        }
 //                    }
@@ -789,7 +789,7 @@ public class AlignmentKLAT1 {
     }
 
 
-    private void addSeedIfMinimumsMet(ArrayList<Seed> tempSeeds, Seed streakerStart, Seed prev, int myKid) {
+    protected void addSeedIfMinimumsMet(ArrayList<Seed> tempSeeds, Seed streakerStart, Seed prev, int myKid) {
         int l = (prev.queryStart - streakerStart.queryStart) + 1;
 //        if (l >= KLATSettingsOLD.MIN_SEED_ADJACENCY && l >= KLATSettingsOLD.MIN_SEED_HITS) {
         if (l >= KLATsettings.MIN_SEED_ADJACENCY && l >= KLATsettings.MIN_SEED_HITS) {
@@ -808,7 +808,7 @@ public class AlignmentKLAT1 {
         return;
     }
 
-    private ArrayList<Seed> addSeed(ArrayList<Seed> tempSeeds, Seed streakerStart, Seed prev, int myKid) {
+    protected ArrayList<Seed> addSeed(ArrayList<Seed> tempSeeds, Seed streakerStart, Seed prev, int myKid) {
 
         if (prev == null){
             tempSeeds.add(streakerStart);
@@ -838,7 +838,7 @@ public class AlignmentKLAT1 {
      *
      * @return  SORTED list of seeds that have been agglomerated to summarize best possible alignment combinations
      */
-    private ArrayList<Seed> generateSeeds(Position[][] table, ArrayList<Integer> rows, int numCols, boolean reverse) {
+    protected ArrayList<Seed> generateSeeds(Position[][] table, ArrayList<Integer> rows, int numCols, boolean reverse) {
         int numRows = rows.size();
         ArrayList<Seed> result = new ArrayList<Seed>();
 

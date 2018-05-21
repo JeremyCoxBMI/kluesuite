@@ -1,6 +1,7 @@
 package org.cchmc.kluesuite.klue;
 
 
+import org.cchmc.kluesuite.klue.kiddatabase.KidDatabase;
 import org.cchmc.kluesuite.masterklue.Settings_OLD;
 import org.cchmc.kluesuite.TimeTotals;
 import org.cchmc.kluesuite.binaryfiledirect.UnsafeFileReader;
@@ -10,6 +11,7 @@ import org.cchmc.kluesuite.binaryfiledirect.UnsafeSerializable;
 
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.zip.DataFormatException;
 
@@ -29,9 +31,16 @@ import static org.cchmc.kluesuite.binaryfiledirect.UnsafeMemory.*;
  */
 
 
-public class KidDatabaseMemory implements UnsafeSerializable {
+public class KidDatabaseMemory implements KidDatabase, UnsafeSerializable {
 
     private static final long serialVersionUID = 2601006L;
+
+
+
+    /**
+     * How often status messages are displayed (per database update on some functions)
+     */
+    public static int PERIOD = 10000;
 
     /**
      * This tracks the KID generation.  This will roll over into negative numbers as it increments, allowing full 32-bit addressing.
@@ -63,6 +72,7 @@ public class KidDatabaseMemory implements UnsafeSerializable {
      * Currently not used/implemented
      */
     protected HashMap<Integer, String> kingdoms;
+    public static boolean squelch = false;
 
     public KidDatabaseMemory() {
         last = 0;    //KID = 0 is forbidden // counting starts at 1
@@ -81,6 +91,16 @@ public class KidDatabaseMemory implements UnsafeSerializable {
         sequences.add(new DnaBitString(""));
 
         fileName = Settings_OLD.KidDbLocation;
+    }
+
+
+    /**
+     * default constructor, prebuild memory containers to fit a size for efficiency
+     */
+    public KidDatabaseMemory(int size) {
+        entries = new ArrayList<Kid>();
+        nameIndex = new ArrayList<String>();
+        sequences = new ArrayList<DnaBitString>();
     }
 
     /**
@@ -122,12 +142,30 @@ public class KidDatabaseMemory implements UnsafeSerializable {
      * @param value
      */
     public void add(Kid value) {
-        System.err.println("Adding sequenceName : " + value.sequenceName);
+        if (!squelch) System.err.println("Adding sequenceName : " + value.sequenceName);
         entries.add(value);
         nameIndex.add(value.sequenceName);
         sequences.add(null);
         last++;
     }
+
+
+    /**
+     * Increase size of store by adding Kid mentioned.
+     * note that addAndTrim( new Kid(String sequenceName) ) only initializes the sequence name.
+     * Other values in Kid must still be imported / parsed.
+     * Does not check if the entry already exists
+     *
+     * @param value
+     */
+    public void addUsingArray(Kid value, Kid[] kids, String[] names) {
+
+        if (!squelch) System.err.println("Adding sequenceName : " + value.sequenceName);
+        last++;
+        kids[last] = value;
+        names[last] = value.sequenceName;
+    }
+
 
     /**
      * next KID that will be added when addAndTrim() is called.
@@ -148,13 +186,36 @@ public class KidDatabaseMemory implements UnsafeSerializable {
     }
 
 
-    public int getKid(String name) {
+    @Override
+    public Integer getLength(int kid) {
+        return sequences.get(kid).getLength();
+    }
 
+    public Integer getKid(String name) {
         if (name.charAt(0) == '>') {
             return nameIndex.indexOf(name.substring(1));
         } else {
             return nameIndex.indexOf(name);
         }
+    }
+
+    @Override
+    public Integer getLength(String name) {
+        Integer x = getKid(name);
+        if (x != null)
+            return sequences.get(x).getLength();
+        else
+            return null;
+    }
+
+    @Override
+    public String getSequenceName(int kid) {
+        return nameIndex.get(kid);
+    }
+
+    @Override
+    public HashMap<Integer, Character> getExceptions(int kid) {
+        return sequences.get(kid).exceptions;
     }
 
     /**
@@ -268,7 +329,7 @@ public class KidDatabaseMemory implements UnsafeSerializable {
      */
 //    public void saveToFileKryo(String filename) throws FileNotFoundException {
 //
-////        Integer x;
+////        Integer nextOffset;
 ////        Set<Integer> keys;
 ////
 ////        Kryo kryo = new Kryo();
@@ -281,8 +342,8 @@ public class KidDatabaseMemory implements UnsafeSerializable {
 ////
 ////        //indelMap
 ////        keys = indelMap.keySet();
-////        x = keys.size();
-////        kryo.writeObject(output, x);
+////        nextOffset = keys.size();
+////        kryo.writeObject(output, nextOffset);
 ////        for (Integer k : keys){
 ////            kryo.writeObject(output, k);
 ////            kryo.writeObject(output, indelMap.get(k));
@@ -290,8 +351,8 @@ public class KidDatabaseMemory implements UnsafeSerializable {
 ////
 ////        //snpMap
 ////        keys = snpMap.keySet();
-////        x = keys.size();
-////        kryo.writeObject(output, x);
+////        nextOffset = keys.size();
+////        kryo.writeObject(output, nextOffset);
 ////        for (Integer k : keys){
 ////            kryo.writeObject(output, k);
 ////            kryo.writeObject(output, snpMap.get(k));
@@ -310,8 +371,8 @@ public class KidDatabaseMemory implements UnsafeSerializable {
 //
 //
 ////        kryo.writeClassAndObject(output, fileName);
-////        Integer x = last;
-////        kryo.writeClassAndObject(output, x);
+////        Integer nextOffset = last;
+////        kryo.writeClassAndObject(output, nextOffset);
 ////        //kryo.writeObject(output, count);
 ////        Integer size = sequences.size();
 ////        kryo.writeClassAndObject(output, size);
@@ -321,8 +382,8 @@ public class KidDatabaseMemory implements UnsafeSerializable {
 //
 //
 //        kryo.writeObject(output, fileName);
-//        Integer x = last;
-//        kryo.writeObject(output, x);
+//        Integer nextOffset = last;
+//        kryo.writeObject(output, nextOffset);
 //
 //        kryo.writeObject(output, entries);
 //        kryo.writeObject(output, nameIndex);
@@ -364,8 +425,8 @@ public class KidDatabaseMemory implements UnsafeSerializable {
 ////        kryo.register(DnaBitString.class, new DnaBitStringKryoSerializer());
 //
 //        result.fileName = kryo.readObject(input, String.class);
-//        Integer x = kryo.readObject(input, Integer.class);
-//        result.last = (int) x;
+//        Integer nextOffset = kryo.readObject(input, Integer.class);
+//        result.last = (int) nextOffset;
 //        if (debug) {
 //            System.err.println("DEBUG39 :: Pulled out result.last : " + result.last);
 //            if (result.last < -1) {
@@ -511,6 +572,8 @@ public class KidDatabaseMemory implements UnsafeSerializable {
     }
 
     public void importFNA(String filename) throws FileNotFoundException {
+
+
         int currentKID = -1;
         SuperString currentSeq = new SuperString();
         //String currentName = "";
@@ -596,6 +659,135 @@ public class KidDatabaseMemory implements UnsafeSerializable {
             e.printStackTrace();
         }
 
+    }
+
+
+
+    public void importFnaNoSequencesStored(String filename, int numberKmersExpected) throws FileNotFoundException {
+        Kid[] entriesArr = new Kid[numberKmersExpected+5];
+        String[] nameArr = new String[numberKmersExpected+5];
+        entriesArr[0] = null;
+        nameArr[0] = "";
+
+        TimeTotals tt = new TimeTotals();
+        tt.start();
+
+        int k=0;
+
+        int currentKID = -1;
+        SuperString currentSeq = new SuperString();
+        //String currentName = "";
+        boolean ignore = true; //do not write empty sequence to database
+
+        //skipping is holdover from copying code.  Here, it does nothing.
+        boolean skipping = false;
+//        boolean debug = false;
+
+//        TimeTotals tt = new TimeTotals();
+//        tt.start();
+
+        System.out.println("\nKiDB loading from FNA begins " + tt.toHMS() + "\n");
+        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+
+            for (String line; (line = br.readLine()) != null; ) {
+
+                if (debug) {
+                    System.err.println("Single line:: " + line);
+                }
+
+                // if blank line, it does not count as new sequence
+                if (line.trim().length() == 0) {
+                    if (debug) {
+                        System.err.println("           :: blank line detected  ");
+                    }
+                    if (!skipping) {
+                        if (!ignore) {
+//                            storeSequence(currentKID, currentSeq, tt);
+                            addSequenceLength(currentSeq.length());
+                        }
+                    }
+                    ignore = true;
+
+                    // if line starts with ">", then it is start of a new reference sequence
+                } else if (line.charAt(0) == '>') {
+                    if (debug) {
+                        System.err.println("           :: new entry detected  " + line);
+                    }
+                    // save previous iteration to database
+
+                    if (!skipping) {
+                        if (!ignore) {
+//                            storeSequence(currentKID, currentSeq, tt);
+                            addSequenceLength(currentSeq.length());
+                        }
+
+                        // initialize next iteration
+
+                        if (indexOf(line.trim()) == -1) {
+                            //original.addAndTrim(new Kid(line.trim()));
+                            //addNewKidEntry(line);
+                            addUsingArray(new Kid(line.trim()), entriesArr, nameArr);
+                            k++;
+                            if (k % PERIOD == 0){
+                                System.err.println("\t\tFinished KID\t"+getLast()+"\t"+tt.toHMS());
+                            }
+                        }
+
+//                        currentKID = getKid(line.trim()); // original.indexOf(line.trim());
+//                        if (currentKID == -1) {
+//                            System.err.println("This sequence not found in database : " + line);
+//                            listEntries(0);
+//                            exit(0);
+//                        }
+                        //currentSeq = "";
+
+                        currentSeq = new SuperString();
+
+                        ignore = false;
+                    }
+                } else {
+                    if (!skipping) {
+                        //currentSeq += line.trim();
+                        currentSeq.addAndTrim(line.trim());
+                    }
+                }
+
+            } //end for
+
+            br.close();
+
+            if (!ignore) {
+//                storeSequence(currentKID, currentSeq, tt);
+                addSequenceLength(currentSeq.length());
+            }
+        } catch (FileNotFoundException e) {
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.err.println("Copying entries from array to arrayList\t"+getLast()+"\t"+tt.toHMS());
+
+        this.entries.addAll( new ArrayList<Kid>(Arrays.asList(entriesArr)) );
+        this.nameIndex = new ArrayList<String>(Arrays.asList(nameArr));
+
+//        int s = entries.size();
+//        for (int z=1; z <= (s-last); z++){  //skip adding 1 to z everytime  (would be index s-z-1)
+//            entries.remove(s-k);
+//            nameIndex.remove(s-k);
+//        }
+        while( last+1 < entries.size() ){
+            entries.remove(entries.size()-1);
+            nameIndex.remove(nameIndex.size()-1);
+        }
+
+        System.err.println("Finished\t"+getLast()+"\t"+tt.toHMS());
+
+    }
+
+    protected void addSequenceLength(int length) {
+        //DO NOTHING
+        //PLace Holder for child class
     }
 
 
@@ -755,6 +947,11 @@ public class KidDatabaseMemory implements UnsafeSerializable {
             }
         }
         return DnaBitString.SENTINEL;  //result is "EMPTY"
+    }
+
+    @Override
+    public void shutDown() {
+
     }
 
     public DnaBitString getSequence(int myKID) {
@@ -1186,4 +1383,51 @@ public class KidDatabaseMemory implements UnsafeSerializable {
 
         storeSequence(getLast(),s);
     }
+
+    public static int countSequencesFNA(String filename) {
+        int result = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+            for (String line; (line = br.readLine()) != null; ) {
+                if (line.charAt(0) == '>')result++;
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    public void saveToFileText() {
+        try {
+            FileWriter fw = new FileWriter(fileName + ".txt");
+            BufferedWriter writer = new BufferedWriter(fw);
+            for (int k = 1; k < getLast(); k++) {
+                writer.write(getName(k) + "\t" + getSequenceLength(k)+"\n");
+            }
+        } catch (IOException e) {
+            System.err.println("WARNING :: KidDatabaseMemory::saveToFileText failed to open output file.");
+            e.printStackTrace();
+        }
+
+    }
+
+
+
+
+    public static KidDatabaseMemory loadFileFromText(String filename) {
+        KidDatabaseMemory result = new KidDatabaseMemory();
+        result.fileName = filename;
+        filename += filename+".txt";
+        try(BufferedReader br = new BufferedReader(new FileReader("names.txt"))) {
+            for (String line; (line = br.readLine()) != null; ) {
+                String[] pieces = line.split("\t");
+                result.add(new Kid(pieces[0]));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
 }

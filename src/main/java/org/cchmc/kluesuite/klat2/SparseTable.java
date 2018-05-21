@@ -14,8 +14,8 @@ public class SparseTable {
 
 //    private class Pair{
 //        final int r, c;
-//        Pair (int x, int y){
-//            r=x;
+//        Pair (int nextOffset, int y){
+//            r=nextOffset;
 //            c=y;
 //        }
 //    }
@@ -70,7 +70,7 @@ public class SparseTable {
             while (it.hasNext()){
                 prev = b;
                 b = it.next();
-                b.calculateScores(prev.cumulativeSmithWatermanScore,prev.cumulativeActualFastKlatScore);
+                b.calculateScores(prev.cumulativeSmithWatermanScore, prev.cumulativeActualFastKlatScore);
             }
             calculated = true;
         }
@@ -131,4 +131,8 @@ public class SparseTable {
         return  el.get(lastIdx).cumulativeMinimumSWscore;
     }
 
+    public ArrayList<PairRC> getWinnerAlignmentCoordinates() {
+
+        return getLast().getWinnerAlignmentCoordinates();
+    }
 }

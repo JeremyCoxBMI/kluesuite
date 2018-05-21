@@ -6,7 +6,10 @@ package org.cchmc.kluesuite.klue;
 
 import org.cchmc.kluesuite.binaryfiledirect.UnsafeMemory;
 import org.cchmc.kluesuite.binaryfiledirect.UnsafeSerializable;
+import org.cchmc.kluesuite.klue.kiddatabase.GetExceptionsArrKey;
 import org.cchmc.kluesuite.rocksDBklue.RocksDbKlue;
+import org.rocksdb.RocksDB;
+import org.rocksdb.RocksDBException;
 import sun.misc.Unsafe;
 
 import java.io.*;
@@ -72,11 +75,22 @@ public class DnaBitString implements DnaBitStringGeneric, UnsafeSerializable{
         exceptions = new HashMap<Integer,Character>();
     }
 
+    public DnaBitString(long[] val, int size, HashMap<Integer,Character> ex){
+        NUM_BITS = 2*size;
+        compressed = new MyFixedBitSet(NUM_BITS,val);
+        exceptions = ex;
+    }
 
     protected DnaBitString(DnaBitString notAcopy){
-        NUM_BITS = notAcopy.NUM_BITS;
-        compressed = notAcopy.compressed;
-        exceptions = notAcopy.exceptions;
+        if (notAcopy == null){
+            System.err.println("\tWARNING\t" +
+                    "This DnaBitString is emtpy, cannot construct");
+            NUM_BITS=0;
+        } else {
+            NUM_BITS = notAcopy.NUM_BITS;
+            compressed = notAcopy.compressed;
+            exceptions = notAcopy.exceptions;
+        }
     }
 
     public DnaBitString(String sequence){
@@ -648,6 +662,12 @@ public class DnaBitString implements DnaBitStringGeneric, UnsafeSerializable{
         DnaBitString result = new DnaBitString();
         result.readUnsafe(um);
         return result;
+    }
+
+    public void putExceptions(RocksDB rocks, GetExceptionsArrKey geak) throws RocksDBException {
+        UnsafeMemory um = new UnsafeMemory(UnsafeMemory.getWriteUnsafeSize(exceptions, UnsafeMemory.HASHMAP_INTEGER_CHARACTER_TYPE));
+        um.put(exceptions,UnsafeMemory.HASHMAP_INTEGER_CHARACTER_TYPE);
+        rocks.put(geak.toBytes(),um.toBytes());
     }
 
     /**

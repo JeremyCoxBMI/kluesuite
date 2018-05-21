@@ -119,7 +119,7 @@ public class SuperString {
 
     public String get(int from, int to) {
         StringBuilder builder = new StringBuilder();
-        for (int k = from; k < to; k++) {
+        for (int k = from; k < to && k < runningTotal; k++) {   //bug 2018.04.26 --> boundary checking
             builder.append(charAt(k));
         }
         return builder.toString();
@@ -147,4 +147,12 @@ public class SuperString {
         return runningTotal;
     }
 
+    public void addReverse(String s) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(s);
+        String line = builder.reverse().toString();
+        strings.add(line);
+        sizes.add(runningTotal);
+        runningTotal += line.length();
+    }
 }

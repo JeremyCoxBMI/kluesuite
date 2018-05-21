@@ -33,6 +33,7 @@ public class KidDatabaseNoDnaBitString extends KidDatabaseMemory implements java
     }
 
 
+
     /**
      * When importFNA is called, does not save DNAbitString
      */

@@ -30,6 +30,7 @@ public class CombineRocksDatabases {
         int maxfiles = 30;
         CombineRocksDbIntoMaster crdbim = new CombineRocksDbIntoMaster(databases, args[0], maxfiles);
         crdbim.agglomerateAndWriteData();
+        crdbim.shutDown();
     }
 
 }

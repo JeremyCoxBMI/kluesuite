@@ -1,8 +1,11 @@
 package org.cchmc.kluesuite.klue;
 
+import org.cchmc.kluesuite.klat.Seed;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 
 /**
  *  PositionList is a container for locations/Position, where a kmer occurs
@@ -155,6 +158,19 @@ public class PositionList {
     /**
      * Appends the positionS to the Position List
      *
+     * @param posz  List<Long> of positions
+     */
+    public void add( PositionList posz) {
+        //System.out.println("bug\t"+posz);
+        if (posz != null)
+            for (int k = 0; k < posz.length(); k++) {
+                posArr.add(posz.get(k));
+            }
+    }
+
+    /**
+     * Appends the positionS to the Position List
+     *
      * @param posz  long[] of positions
      */
     public void add( long[] posz){
@@ -183,6 +199,7 @@ public class PositionList {
     public boolean sortAndRemoveDuplicates(){
         boolean result = false;
         sortPositions();
+        if (posArr.size() == 1) return false;
 
         for (int k=0; k<posArr.size()-1; k++){
             if (posArr.get(k).equals( posArr.get(k+1) ) || (1<= posArr.get(k).getMyKID() && posArr.get(k).getMyKID() <= 3) ){
@@ -338,5 +355,31 @@ public class PositionList {
         return result;
     }
 
+    public final class PositionIterator implements Iterator<Position> {
+
+        int curr = 0;
+        int size;
+
+        PositionIterator(){
+            if (!initialized){ generateArray(); }
+            size = posArr.size();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return curr < size;
+        }
+
+        @Override
+        public Position next() {
+            Position r = posArr.get(curr);
+            curr++;
+            return r;
+        }
+    }
+
+    public Iterator<Position> iterator(){
+        return new PositionIterator();
+    }
 
 }

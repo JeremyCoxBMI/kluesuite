@@ -630,7 +630,7 @@ public class VariantDatabaseMemory implements VariantDatabase<Variant, Variant[]
 //    @Override
 //    public void saveToFile() throws FileNotFoundException {
 //
-//        Integer x;
+//        Integer nextOffset;
 //        Set<Integer> keys;
 //
 //        Kryo kryo = new Kryo();
@@ -643,8 +643,8 @@ public class VariantDatabaseMemory implements VariantDatabase<Variant, Variant[]
 //
 //        //indelMap
 //        keys = indelMap.keySet();
-//        x = keys.size();
-//        kryo.writeObject(output, x);
+//        nextOffset = keys.size();
+//        kryo.writeObject(output, nextOffset);
 //        for (Integer k : keys){
 //            kryo.writeObject(output, k);
 //            kryo.writeObject(output, indelMap.get(k));
@@ -652,8 +652,8 @@ public class VariantDatabaseMemory implements VariantDatabase<Variant, Variant[]
 //
 //        //snpMap
 //        keys = snpMap.keySet();
-//        x = keys.size();
-//        kryo.writeObject(output, x);
+//        nextOffset = keys.size();
+//        kryo.writeObject(output, nextOffset);
 //        for (Integer k : keys){
 //            kryo.writeObject(output, k);
 //            kryo.writeObject(output, snpMap.get(k));
@@ -666,7 +666,7 @@ public class VariantDatabaseMemory implements VariantDatabase<Variant, Variant[]
 //
 //    public void loadFromFile(String filename) throws FileNotFoundException {
 //
-//        Integer x;
+//        Integer nextOffset;
 //        Integer pos;
 //        TreeMap<Integer,Variant[]> t;
 //        Kryo kryo = new Kryo();
@@ -681,16 +681,16 @@ public class VariantDatabaseMemory implements VariantDatabase<Variant, Variant[]
 //        this.fileName = kryo.readObject(input, String.class);
 //
 //        //indelMap
-//        x = kryo.readObject(input, Integer.class);
-//        for (int k=0; k<x; k++){
+//        nextOffset = kryo.readObject(input, Integer.class);
+//        for (int k=0; k<nextOffset; k++){
 //            pos = kryo.readObject(input, Integer.class);
 //            t = kryo.readObject(input, TreeMap.class);
 //            this.indelMap.put(pos, t);
 //        }
 //
 //        //snpMap
-//        x = kryo.readObject(input, Integer.class);
-//        for (int k=0; k<x; k++){
+//        nextOffset = kryo.readObject(input, Integer.class);
+//        for (int k=0; k<nextOffset; k++){
 //            pos = kryo.readObject(input, Integer.class);
 //            t = kryo.readObject(input, TreeMap.class);
 //            this.snpMap.put(pos, t);

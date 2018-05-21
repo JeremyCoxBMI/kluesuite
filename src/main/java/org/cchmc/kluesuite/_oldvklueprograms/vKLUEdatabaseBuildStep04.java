@@ -116,7 +116,7 @@ public class vKLUEdatabaseBuildStep04 {
             System.err.println("KID\t" + kid + "k processed\t" + new Timestamp(timer.getTime()) + "\t" + tt.toHMS());
 
 //            if (count % 10000 == 0) {
-//                System.err.println("Variant\t" + count / 10000 + "\t x 10k processed" + new Timestamp(timer.getTime()) + "\t" + tt.toHMS());
+//                System.err.println("Variant\t" + count / 10000 + "\t nextOffset 10k processed" + new Timestamp(timer.getTime()) + "\t" + tt.toHMS());
 //                System.err.println("\t" + kd.getName(kid));
 //                System.err.println("Permutations: ");
 

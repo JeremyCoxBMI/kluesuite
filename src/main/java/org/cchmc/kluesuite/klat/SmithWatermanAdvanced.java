@@ -296,7 +296,7 @@ public class SmithWatermanAdvanced {
     public void printPrettyBestResults(PrintStream stream) {
         ArrayList<PartialAlignment1> pas = bestAlignments();
         int x = Math.min(columns.length(), rows.length());
-//        stream.println("Best alignment score is "+Integer.toString(pas.get(0).score)+" of "+x*MATCH+"\n");
+//        stream.println("Best alignment score is "+Integer.toString(pas.get(0).score)+" of "+nextOffset*MATCH+"\n");
         for (PartialAlignment1 pat : pas) {
             stream.println("\n" + pat + "\n");
         }

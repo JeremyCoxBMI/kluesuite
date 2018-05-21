@@ -78,4 +78,12 @@ public interface KLUE {
      * Note a proper program using KLUE will call shutDown() before exitting
      */
     public void shutDown();
+
+
+    /**
+     * Some databases implement this
+     * Iterator<KeyValuePair> iterator();
+     * @return
+     */
+    //Iterator<KeyValuePair> iterator();
 }

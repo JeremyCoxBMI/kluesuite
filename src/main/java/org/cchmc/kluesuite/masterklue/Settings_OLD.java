@@ -92,7 +92,7 @@ public class Settings_OLD {
 
         try {
             output = new FileOutputStream(SettingsPath);
-            prop.store(output, "See README.txt for explanation of these settings.");
+            prop.store(output, "See README.md for explanation of these settings.");
         } catch (IOException io) {
             io.printStackTrace();
         } finally {

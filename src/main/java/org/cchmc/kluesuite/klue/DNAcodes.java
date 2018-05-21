@@ -4,6 +4,20 @@ import java.util.*;
 
 /**
  * This class contains the equivalency information for DNA letter codes.
+ *
+ * This is the FastA standardized alphabet
+ * R    :   A, G
+ * Y    :   C, T, (U)
+ * K    :   G, T, (U)
+ * M    :   C, A
+ * S    :   C, G
+ * W    :   A, T, (U)
+ * B    :   C, G, T, (U)
+ * D    :   A, G, T, (U)
+ * H    :   A, C, T, (U)
+ * V    :   A, C, G
+ * N    :   A, G, G, T (U)
+ * ?    :   A, G, G, T (U)
  */
 public class DNAcodes {
 
@@ -75,35 +89,39 @@ public class DNAcodes {
 
         //Triples
         writeCombinations(  'B', 'b', new HashSet<Character>( Arrays.asList('C','T','G','U','c','t','g','u') )  );
-        substituteSNP.put(  'B', new HashSet<Character>(Arrays.asList('C','T','G')));
+        substituteSNP.put('B', new HashSet<Character>(Arrays.asList('C', 'T', 'G')));
         substituteSNP.put(  'b', new HashSet<Character>(Arrays.asList('C','T','G')));
 
-        writeCombinations(  'D', 'd', new HashSet<Character>( Arrays.asList('A','T','G','U','a','t','g','u') )  );
-        substituteSNP.put(  'D', new HashSet<Character>(Arrays.asList('A','T','G')));
+        writeCombinations('D', 'd', new HashSet<Character>(Arrays.asList('A', 'T', 'G', 'U', 'a', 't', 'g', 'u')));
+        substituteSNP.put('D', new HashSet<Character>(Arrays.asList('A', 'T', 'G')));
         substituteSNP.put(  'd', new HashSet<Character>(Arrays.asList('A','T','G')));
 
-        writeCombinations(  'H', 'h', new HashSet<Character>( Arrays.asList('A','T','C','U','a','t','c','u') )  );
-        substituteSNP.put(  'H', new HashSet<Character>(Arrays.asList('A','T','C')));
+        writeCombinations('H', 'h', new HashSet<Character>(Arrays.asList('A', 'T', 'C', 'U', 'a', 't', 'c', 'u')));
+        substituteSNP.put('H', new HashSet<Character>(Arrays.asList('A', 'T', 'C')));
         substituteSNP.put(  'h', new HashSet<Character>(Arrays.asList('A','T','C')));
 
-        writeCombinations(  'V', 'v', new HashSet<Character>( Arrays.asList('A','G','C','a','g','c') )  );
-        substituteSNP.put(  'V', new HashSet<Character>(Arrays.asList('A','G','C')));
+        writeCombinations('V', 'v', new HashSet<Character>(Arrays.asList('A', 'G', 'C', 'a', 'g', 'c')));
+        substituteSNP.put('V', new HashSet<Character>(Arrays.asList('A', 'G', 'C')));
         substituteSNP.put(  'v', new HashSet<Character>(Arrays.asList('A','G','C')));
 
-        writeCombinations(  'T', 't', new HashSet<Character>( Arrays.asList('T','t') )  );
-        substituteSNP.put(  'T', new HashSet<Character>(Arrays.asList('T')));
+        writeCombinations('T', 't', new HashSet<Character>(Arrays.asList('T', 't')));
+        substituteSNP.put('T', new HashSet<Character>(Arrays.asList('T')));
         substituteSNP.put(  't', new HashSet<Character>(Arrays.asList('T')));
-        writeCombinations(  'A', 'a', new HashSet<Character>( Arrays.asList('A','a') )  );
-        substituteSNP.put(  'A', new HashSet<Character>(Arrays.asList('A')));
+        writeCombinations('A', 'a', new HashSet<Character>(Arrays.asList('A', 'a')));
+        substituteSNP.put('A', new HashSet<Character>(Arrays.asList('A')));
         substituteSNP.put(  'a', new HashSet<Character>(Arrays.asList('a')));
 
-        writeCombinations(  'C', 'c', new HashSet<Character>( Arrays.asList('C','c') )  );
-        substituteSNP.put(  'C', new HashSet<Character>(Arrays.asList('C')));
+        writeCombinations('C', 'c', new HashSet<Character>(Arrays.asList('C', 'c')));
+        substituteSNP.put('C', new HashSet<Character>(Arrays.asList('C')));
         substituteSNP.put(  'C', new HashSet<Character>(Arrays.asList('C')));
 
-        writeCombinations(  'G', 'g', new HashSet<Character>( Arrays.asList('G','G') )  );
-        substituteSNP.put(  'G', new HashSet<Character>(Arrays.asList('G')));
+        writeCombinations('G', 'g', new HashSet<Character>(Arrays.asList('G', 'g')));
+        substituteSNP.put('G', new HashSet<Character>(Arrays.asList('G')));
         substituteSNP.put(  'g', new HashSet<Character>(Arrays.asList('G')));
+
+                //should there be writeCombinations here for 'N'?
+        substituteSNP.put(  'N', new HashSet<Character>(Arrays.asList('A', 'T', 'C', 'G')));
+        substituteSNP.put(  'n', new HashSet<Character>(Arrays.asList('A', 'T', 'C', 'G')));
 
         //Wildcards
         equivalency.put(  'N', new HashSet<Character>( all )   );
@@ -329,6 +347,21 @@ public class DNAcodes {
         if (DEBUG) System.err.println("Set Conversion : "+snps+"\tto\t"+result+"\tto\t"+substituteSNP.get(result));
 
         return result;
+    }
+
+    public static int getInt(Character character) {
+        char select = complement.get(character);
+        switch (select){
+            case 'T':
+                return 0;
+            case 'C':
+                return 1;
+            case 'G':
+                return 2;
+            case 'A':
+                return 3;
+        }
+        return -1;
     }
 }
 

@@ -2,6 +2,7 @@ package org.cchmc.kluesuite.klat2;
 
 import org.cchmc.kluesuite.klat.Seed;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 
 /**
@@ -86,11 +87,16 @@ public class Box2 implements Comparable<Box2>, Comparator<Box2> {
 
     protected Box2(){}
 
+    /**
+     * Seed edges are INCLUSIVE to EXCLUSIVE
+     * @param s
+     */
     public Box2(Seed s){
+        //Issue #96 TODO where does the k-mer offset come into play?
         this.srow = s.queryStart;
-        this.erow = s.queryEnd;
+        this.erow = s.queryEnd -1;  //EXCLUSIVE to INCLUSIVE
         this.scol = s.start;
-        this.ecol = s.end;
+        this.ecol = s.end -1;   //EXCLUSIVE to INCLUSIVE
 
 
         cumulativeActualFastKlatScore = -1;
@@ -121,5 +127,11 @@ public class Box2 implements Comparable<Box2>, Comparator<Box2> {
     @Override
     public int compare(Box2 o1, Box2 o2) {
         return o1.srow - o2.srow;
+    }
+
+    public ArrayList<PairRC> getWinnerAlignmentCoordinates(){
+        ArrayList<PairRC> result = new ArrayList<PairRC>(  );
+        result.add(new PairRC(erow, ecol));
+        return result;
     }
 }

@@ -20,7 +20,7 @@ import java.util.Collections;
  * 2017/05/25  NEED to addAndTrim CIGAR string
  * 2017-08-01  Updating to store Variants Called
  */
-public class PartialAlignment1 {
+public class PartialAlignment1 extends PartialAlignment {
 
     /**
      * For process gaps method 2, stores the positions of gaps and which string they belong to
@@ -101,7 +101,7 @@ public class PartialAlignment1 {
         return fastKLATscore;
     }
 
-    public int numMatches;
+
 
     /**
      * AlignmentKLAT1 string in human readable form; may be query or reference, see queryASleft
@@ -134,11 +134,7 @@ public class PartialAlignment1 {
     private boolean hasVariantsCalled  = false;
 
 
-    /**
-     *
-     * Sam File CIGAR string
-     */
-    public String CIGARString;
+
 
     /**
      * it is possible that the query will be stored as longer sequence
@@ -146,88 +142,19 @@ public class PartialAlignment1 {
      */
     boolean queryASleft;
 
-    /**
-     * possibly a duplication of the length parameter.
-     * This counts the total length of matches, mismatches, and gaps in the alignment.
-     * or, then length of the laignment.  Note this can be more or less than the query length, because there may be unaligned edges.
-     */
-    public int numAligned;
 
 
-    /**
-     * BlastN format6 reporting term
-     * percent of identical matches
-     *
-     * Percent Identity = (Matches x 100)/Length of aligned region (with gaps)
-     */
-    public float pident;
-
-    /**
-     * BlastN format6 reporting term
-     * this is alignment length
-     * todo: judges ruling on what length means?
-     *
-     * IN SAM FILE, tlen is reference alignment length
-     * IN BLAST, unknown -- need to test
-     */
-    public int length;
 
 
-    /**
-     * BlastN format6 reporting term
-     *
-     */
-    public int mismatch;
 
-    /**
-     * Total number of gaps in alignment
-     */
-    public int gapopen;
 
-    /**
-     * BlastN format6 reporting term
-     * Position in query where alignment starts, INCLUSIVE
-     */
-    public int qstart;
 
-    /**
-     * BlastN format6 reporting term
-     * Position in query where alignment ends, INCLUSIVE
-     */
-    public int qend;
 
-    /**
-     * BlastN format6 reporting term
-     * Position in reference sequence where alignment begins, INCLUSIVE
-     * NOTE this is 0-indexed, as we do not know the offset of the sequence submitted
-     * Furthermore, if it is reversed, that complicates matters
-     */
-    public int sstart;
 
-    /**
-     * BlastN format6 reporting term
-     * Position in reference sequence where alignment ends, INCLUSIVE
-     * NOTE this is 0-indexed, as we do not know the offset of the sequence submitted
-     * Furthermore, if it is reversed, that complicates matters
-     */
-    public int send;
-
-    /**
-     * BlastN format6 reporting term
-     */
-    public double evalue;
-
-    /**
-     * BlastN format6 reporting term
-     */
-    public int bitscore;
 
     ArrayList<AlignmentGap> gaps;
 
-    /**
-     * Optional data element, describes SNPs that could be cause of mismatches
-     */
-    public ArrayList<Variant> mismatchesCalled;
+
 
 
     //intermediate global variables to pass between functions
@@ -262,10 +189,7 @@ public class PartialAlignment1 {
      */
     private int gapPos;
 
-    /**
-     * Fast Klat Score for the AlignmentKLAT1
-     */
-    public int fastKLATscore = 0;
+
 
 
 //    /**
@@ -563,10 +487,10 @@ public class PartialAlignment1 {
         //gap coordinates easily reversed, as AlignmentKLAT1 is built in reverse, BUT gap offset will need to be processed in CALL VARIANTs?
         //probably should not change here --> unless we write a callVariants2 to match
         for (AlignmentGap x : gaps){
-            //            x.pos = numAligned - x.pos - 1;
+            //            nextOffset.pos = numAligned - nextOffset.pos - 1;
             x.pos = numAligned - x.pos - x.length+1;  //gap start is now gap end, so gap end becomes gap start
 
-//            AlignmentGap2 z = (AlignmentGap2) x;
+//            AlignmentGap2 z = (AlignmentGap2) nextOffset;
             //row and column stored correctly as refPosition or qPosition, not offset for length
             //THEY ARE NOW!!!
 
@@ -927,8 +851,8 @@ public class PartialAlignment1 {
         }
         //write final
         addGap2(gapStart,
-                  gaps2refPositions.get(gapStart)  -gaps2refPositions.get(k-1),
-                gaps2queryPositions.get(gapStart)-gaps2queryPositions.get(k-1));
+                gaps2refPositions.get(gapStart) - gaps2refPositions.get(k - 1),
+                gaps2queryPositions.get(gapStart) - gaps2queryPositions.get(k - 1));
 
 
     }
@@ -1160,19 +1084,19 @@ public class PartialAlignment1 {
 //
 //
 //
-//            AlignmentGap x = gaps.get(k);
+//            AlignmentGap nextOffset = gaps.get(k);
 //            AlignmentGap y = gaps.get(k+1);
-//            if (y.pos < x.pos){
-//                AlignmentGap t = x;
-//                x=y;
+//            if (y.pos < nextOffset.pos){
+//                AlignmentGap t = nextOffset;
+//                nextOffset=y;
 //                y=t;
 //            }
 //
-//            int end = x.pos+x.length();
+//            int end = nextOffset.pos+nextOffset.length();
 //            int nextStart = y.pos;
-//            boolean gapISquery = (x.gapISquery == y.gapISquery);
+//            boolean gapISquery = (nextOffset.gapISquery == y.gapISquery);
 //            if (end == nextStart && gapISquery){
-//                gaps.set(k,new AlignmentGap(x.pos, x.length+y.length,x.gapISquery));
+//                gaps.set(k,new AlignmentGap(nextOffset.pos, nextOffset.length+y.length,nextOffset.gapISquery));
 //                gaps.remove(k+1);
 //                k--;
 //                System.out.println("  WARNING :: gaps had to be combined for this alignment");
@@ -1278,8 +1202,13 @@ public class PartialAlignment1 {
         return v;
     }
 
-    public void printAlignment() {
-        System.out.println(top);
-        System.out.println(left);
+    @Override
+    public String printAlignment(){
+        return top+"\n"+left;
     }
+
+//    public void printAlignment() {
+//        System.out.println(top);
+//        System.out.println(left);
+//    }
 }
