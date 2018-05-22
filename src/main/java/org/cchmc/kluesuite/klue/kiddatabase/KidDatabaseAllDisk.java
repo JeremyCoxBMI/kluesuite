@@ -721,6 +721,10 @@ public class KidDatabaseAllDisk implements KidDatabase {
 
     }
 
+    public void importFnaEverythingButKmers(String filename, int start, int end, KLUE kmers, KLUE startEnd) {
+        importFnaEverythingButKmers( filename, start, end, kmers, startEnd, 0);
+    }
+
 
     /**
      *
@@ -729,12 +733,12 @@ public class KidDatabaseAllDisk implements KidDatabase {
      * @param start which kid to start on 1 == first (0 is reserved)
      * @param end
      */
-    public void importFnaEverythingButKmers(String filename, int start, int end, KLUE kmers, KLUE startEnd) {
+    public void importFnaEverythingButKmers(String filename, int start, int end, KLUE kmers, KLUE startEnd, int startKid) {
         //unlimited import
         if (start == 1 && end == 1) end = Integer.MAX_VALUE;
         if (start < 1) start = 1;
 
-        int currentKID = 0;
+        int currentKID = startKid;
 
         SuperString currentSeq = new SuperString();
         String currentName ="";
