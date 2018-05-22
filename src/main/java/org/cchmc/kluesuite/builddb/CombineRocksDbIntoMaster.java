@@ -4,6 +4,7 @@ import org.cchmc.kluesuite.TimeTotals;
 import org.cchmc.kluesuite.klue.KLUE;
 import org.cchmc.kluesuite.klue.Kmer31;
 import org.cchmc.kluesuite.klue.PositionList;
+import org.cchmc.kluesuite.multifilerocksdbklue.Rocks16Klue;
 import org.cchmc.kluesuite.rocksDBklue.RocksDbKlue;
 import org.rocksdb.RocksIterator;
 
@@ -68,7 +69,42 @@ public class CombineRocksDbIntoMaster {
 
     }
 
+    public CombineRocksDbIntoMaster(String[] databases, String masterPath, int MAXFILES, boolean sixteenParts){
 
+
+
+        dbs = databases;
+
+
+        int miniDbOpenFiles = 5;
+
+        tt = new TimeTotals();
+        tt.start();
+
+        System.out.println("Opening master database :\t"+masterPath);
+
+        if (!sixteenParts) {
+            master = new RocksDbKlue(masterPath, false, MAXFILES);
+        } else {
+            master = new Rocks16Klue(masterPath, false);
+        }
+
+        rdbs = new RocksDbKlue[dbs.length];
+        its = new RocksIterator[dbs.length];
+
+        //In theory, should only ever have dbs.length entries (one per db), but let's be careful.
+        pq = new PriorityQueue<LookUp>(dbs.length*2, new LookUpComparator());
+
+        for (int k=0; k<dbs.length; k++){
+            System.out.println("Opening read-only database :\t"+dbs[k]);
+            rdbs[k] = new RocksDbKlue(dbs[k],true,miniDbOpenFiles);
+            its[k] = rdbs[k].newIterator();
+            its[k].seekToFirst();
+            putValueAndNext(k);
+        }
+
+
+    }
 
 //    public CombineRocksDbIntoMaster(String[] databases, String masterPath, int MAXFILES, long from, long to){
 //        dbs = databases;

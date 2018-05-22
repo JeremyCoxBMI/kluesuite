@@ -17,7 +17,7 @@ import static org.cchmc.kluesuite.mainprograms.databasebuilders.CombineRocksDB.m
  * FOLLOWS BuildPieces parallel program
  *
  */
-public class CombinePieces {
+public class CombinePiecesMultipleDatabasesRocks16 {
 
     public static ArrayList<String> findExistingParts(String prefix) {
         ArrayList<String> filePartNames = new ArrayList<String>(100);
@@ -38,17 +38,19 @@ public class CombinePieces {
 
 
     public static void main(String[] args) {
-        if (args.length != 2) {
-            System.err.println("Takes a pieces of databases and combines them");
-            System.err.println("ARG 0  : location to place databases (path and prefix)");
+        if (args.length < 2) {
+            System.err.println("Takes a pieces of multiple databases and combines them");
+            System.err.println("ARG 0  : number of pieces");
+            System.err.println("ARG 1  : final database name");
+            System.err.println("ARG 2+ : location to place databases (path and prefix)");
             System.err.println("       : a.k.a the master prefix used in all steps)");
-            System.err.println("ARG 1  : number of pieces");
+
         }
 
-        combine(args[0], Integer.parseInt(args[1]));
+        combine(args, args[1], Integer.parseInt(args[0]));
     }
 
-    private static void combine(String rocksPrefix, int numpieces) {
+    private static void combine(String[] args, String rocksPrefix, int numpieces) {
 
 
         ArrayList<String> kidDiskAllPieces = new ArrayList<>();
@@ -57,18 +59,23 @@ public class CombinePieces {
 
         ArrayList<String> temp;
 
-        //build file list for combination
-        for (int p=0; p<numpieces; p++){
-            String rocksKlueTemp =          rocksPrefix+ KidDatabaseAllDisk.TEMPORARY_KLUE_SUFFIX + String.format(".c%02d", p);;
-            String rocksKlueStartEndName =  rocksPrefix+KidDatabaseAllDisk.STARTEND_SUFFIX + String.format(".c%02d", p);
-            String kidDiskAllTemp =         rocksPrefix + KidDatabaseAllDisk.TEMPORARY_KIDDB_SUFFIX + String.format(".c%02d", p);
+        //arg 2 starts database to combine
+        for (int k=2; k < args.length; k++) {
+            String tempPrefix = args[k];
+            //build file list for combination
+            for (int p = 0; p < numpieces; p++) {
+                String rocksKlueTemp = tempPrefix + KidDatabaseAllDisk.TEMPORARY_KLUE_SUFFIX + String.format(".c%02d", p);
+                ;
+                String rocksKlueStartEndName = tempPrefix + KidDatabaseAllDisk.STARTEND_SUFFIX + String.format(".c%02d", p);
+                String kidDiskAllTemp = tempPrefix + KidDatabaseAllDisk.TEMPORARY_KIDDB_SUFFIX + String.format(".c%02d", p);
 
-            temp = findExistingParts(rocksKlueTemp);
-            kmerAllPieces.addAll(temp);
-            temp = findExistingParts(kidDiskAllTemp);
-            kidDiskAllPieces.addAll(temp);
-            temp = findExistingParts(rocksKlueStartEndName);
-            startEndAllPieces.addAll(temp);
+                temp = findExistingParts(rocksKlueTemp);
+                kmerAllPieces.addAll(temp);
+                temp = findExistingParts(kidDiskAllTemp);
+                kidDiskAllPieces.addAll(temp);
+                temp = findExistingParts(rocksKlueStartEndName);
+                startEndAllPieces.addAll(temp);
+            }
         }
 
 
@@ -92,7 +99,7 @@ public class CombinePieces {
         LogStream.stdout.printlnTimeStamped("Creating database\t"+rocksKlueName);
         LogStream.stdout.println("\t\tFrom\t"+(String[]) kmerAllPieces.toArray(new String[kmerAllPieces.size()]));
 
-        CombineRocksDbIntoMaster crdbim = new CombineRocksDbIntoMaster((String[]) kmerAllPieces.toArray(new String[kmerAllPieces.size()]), rocksKlueName, maxfiles);
+        CombineRocksDbIntoMaster crdbim = new CombineRocksDbIntoMaster((String[]) kmerAllPieces.toArray(new String[kmerAllPieces.size()]), rocksKlueName, maxfiles, true);
         crdbim.agglomerateAndWriteData();
         crdbim.shutDown();
 
