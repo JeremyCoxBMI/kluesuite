@@ -738,6 +738,10 @@ public class KidDatabaseAllDisk implements KidDatabase {
         if (start == 1 && end == 1) end = Integer.MAX_VALUE;
         if (start < 1) start = 1;
 
+        //offset for new starting position
+        start += startKid;
+        end += startKid;
+
         int currentKID = startKid;
 
         SuperString currentSeq = new SuperString();
