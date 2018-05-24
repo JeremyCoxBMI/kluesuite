@@ -11,6 +11,7 @@ import org.rocksdb.RocksIterator;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
@@ -55,6 +56,9 @@ public class CombineRocksDbIntoMaster {
         rdbs = new RocksDbKlue[dbs.length];
         its = new RocksIterator[dbs.length];
 
+        System.out.println("databases to combine");
+        System.out.println(Arrays.toString(databases));
+        System.out.println("");
         //In theory, should only ever have dbs.length entries (one per db), but let's be careful.
         pq = new PriorityQueue<LookUp>(dbs.length*2, new LookUpComparator());
 
