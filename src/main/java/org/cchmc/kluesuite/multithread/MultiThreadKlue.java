@@ -12,6 +12,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * Created by COX1KB on 3/24/2018.
+ *
+ * WHY NOT USING ASYNC KLUE
  */
 public class MultiThreadKlue {
     /**
