@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.PriorityQueue;
+import java.util.zip.DataFormatException;
 
 /**
  * Created by osboxes on 18/08/16.
@@ -22,7 +23,7 @@ import java.util.PriorityQueue;
  * This combines multiple databases into one, writing IN ORDER for speed optimization.
  *
  */
-public class CombineRocksDbIntoMaster {
+public class CombineRocksDbIntoMasterNoDuplicateKeys {
 
     /**
      * Frequency at which speed reports are made.
@@ -41,7 +42,7 @@ public class CombineRocksDbIntoMaster {
     protected long pause = 0;
 
 
-    public CombineRocksDbIntoMaster(String[] databases, String masterPath, int MAXFILES){
+    public CombineRocksDbIntoMasterNoDuplicateKeys(String[] databases, String masterPath, int MAXFILES){
         dbs = databases;
 
 
@@ -73,7 +74,7 @@ public class CombineRocksDbIntoMaster {
 
     }
 
-    public CombineRocksDbIntoMaster(String[] databases, String masterPath, int MAXFILES, boolean sixteenParts){
+    public CombineRocksDbIntoMasterNoDuplicateKeys(String[] databases, String masterPath, int MAXFILES, boolean sixteenParts){
 
 
 
@@ -110,7 +111,7 @@ public class CombineRocksDbIntoMaster {
 
     }
 
-//    public CombineRocksDbIntoMaster(String[] databases, String masterPath, int MAXFILES, long from, long to){
+//    public CombineRocksDbIntoMasterNoDuplicateKeys(String[] databases, String masterPath, int MAXFILES, long from, long to){
 //        dbs = databases;
 ////        this.myKidDB = myKidDB;
 //
@@ -142,10 +143,10 @@ public class CombineRocksDbIntoMaster {
 
 
 
-    protected CombineRocksDbIntoMaster(){}
+    protected CombineRocksDbIntoMasterNoDuplicateKeys(){}
 
 
-    public CombineRocksDbIntoMaster(String[] databases, String masterPath, int MAXFILES, long resume, int pause) {
+    public CombineRocksDbIntoMasterNoDuplicateKeys(String[] databases, String masterPath, int MAXFILES, long resume, int pause) {
 
         dbs = databases;
 
@@ -186,7 +187,7 @@ public class CombineRocksDbIntoMaster {
     }
 
 
-    public CombineRocksDbIntoMaster(String[] databases, KLUE klue, int MAXFILES, long resume) {
+    public CombineRocksDbIntoMasterNoDuplicateKeys(String[] databases, KLUE klue, int MAXFILES, long resume) {
 
         dbs = databases;
 
@@ -216,7 +217,7 @@ public class CombineRocksDbIntoMaster {
 
     }
 
-    public CombineRocksDbIntoMaster(String[] databases, String masterPath, int MAXFILES, long resume) {
+    public CombineRocksDbIntoMasterNoDuplicateKeys(String[] databases, String masterPath, int MAXFILES, long resume) {
 
         dbs = databases;
 
@@ -262,87 +263,11 @@ public class CombineRocksDbIntoMaster {
     }
 
 
-    public void agglomerateAndWriteData(){
-        agglomerateAndWriteData((1L << 62));    //MAX KMER31 value + 1
-    }
-
-
-    public void agglomerateAndWriteData(int frequency)
-    {
-        agglomerateAndWriteData(frequency, (1L << 62));    //MAX KMER31 value + 1
-
-    }
-
-
-    /**
-     *
-     * @param frequency
-     * @param upperbound    default (1L << 62)
-     */
-    public void agglomerateAndWriteData(int frequency, long upperbound)
-    {
-        LookUp curr, temp;
-        PositionList value;
-        tt.start();
-
-        //Pull items off priority queue in LEXOGRAPHIC ORDER, then write them to new database
-
-
-        int count = frequency;
-        long reset_time = System.currentTimeMillis() + 1000;
-        long now_time;
-
-        //While pq is not empty, keep processing
-        long k = 0;
-        while (!pq.isEmpty()){
-            curr = pq.remove();
-            value = new PositionList(curr.posz);
-            putValueAndNext(curr.index);
-
-            if (curr.key >= upperbound) break;
-
-            //check to see if next item is same; if so, agglomerate entries
-            temp = pq.peek();
-            while( temp != null && temp.key == curr.key){
-                temp = pq.remove();
-                value.add(temp.posz);
-                putValueAndNext(temp.index);
-                temp = pq.peek();
-            }
-
-            k++;
-            if (k % period == 1){
-                //double pct = ((curr.key / 1L << 54) / new Double(1L << 8))*100;
-                double pct = (new Double(curr.key >> 54) / new Double(1L << 8))*100;
-                Kmer31 x = new Kmer31(curr.key);
-
-                System.out.println("\tWriting Kmer31 number "+k/period+" million to master :: "+x+"("+x.toLong()+")"+"\t   (average) records/s = "+(k)/tt.timePassedFromStartSeconds()+"\t"+pct+"%");
-            }
-            value.sortAndRemoveDuplicates();
-
-            if (count >= frequency){
-                //burn cycles
-                while (true){
-                    if (System.currentTimeMillis() > reset_time){
-                        break;
-                    }
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                    }
-                }
-                count = 0;
-            }
-            master.put(curr.key, value.toArrayListLong());
-            count++;
-        }
-    }
-
 
     /**
      * Parses database contents, combines entries if needed, and writes final record.
      */
-    public void agglomerateAndWriteData(long upperbound){
+    public void agglomerateAndWriteData(long upperbound) throws DataFormatException {
         LookUp curr, temp;
         PositionList value;
         tt.start();
@@ -359,10 +284,7 @@ public class CombineRocksDbIntoMaster {
             //check to see if next item is same; if so, agglomerate entries
             temp = pq.peek();
             while( temp != null && temp.key == curr.key){
-                temp = pq.remove();
-                value.add(temp.posz);
-                putValueAndNext(temp.index);
-                temp = pq.peek();
+                throw new DataFormatException("duplicate key found\t"+temp.key);
             }
 
             k++;
@@ -372,7 +294,7 @@ public class CombineRocksDbIntoMaster {
                 Kmer31 x = new Kmer31(curr.key);
                 System.out.println("\tWriting Kmer31 number "+k/period+" million to master :: "+x+"("+x.toLong()+")"+"\t   (average) records/s = "+(k*1000000000L)/tt.timePassedFromStart()+"\t"+pct+"%");
             }
-            value.sortAndRemoveDuplicates();
+            //value.sortAndRemoveDuplicates();
             if (curr.key >= upperbound) break;
             master.put(curr.key, value.toArrayListLong());
 
@@ -493,23 +415,28 @@ public class CombineRocksDbIntoMaster {
 
     public static void main(String[] args) {
         String path = "./";
-        String[] dirs = getLocalDirectories(path);
 
-        period = 100*1000;
+        CombineRocksDbIntoMaster.period = 100*1000;
 
-        int noFiles = dirs.length;
+        int noFiles = args.length-1;
         String[] databases = new String[noFiles];
         for (int k = 0; k<noFiles; k++){
-            databases[k] = path + dirs[k];
+            databases[k] = path + args[k+1];
         }
-//        KidDatabaseMemory myKidDB = KidDatabaseMemory.loadFromFile("kmerpos_KID_DB.dat.bin");
+
+
 
         //unclear what this value should be
         int maxfiles = 30;
-        CombineRocksDbIntoMaster crdbim = new CombineRocksDbIntoMaster(databases, "master", maxfiles);
-        crdbim.agglomerateAndWriteData();
+        CombineRocksDbIntoMasterNoDuplicateKeys crdbim = new CombineRocksDbIntoMasterNoDuplicateKeys(databases, args[0], maxfiles);
+        try {
+            crdbim.agglomerateAndWriteData(Long.MAX_VALUE);
+        } catch (DataFormatException e) {
+            e.printStackTrace();
+            crdbim.shutDown();
+            System.exit(1);
+        }
         crdbim.shutDown();
-
     }
 
     public void shutDown(){
