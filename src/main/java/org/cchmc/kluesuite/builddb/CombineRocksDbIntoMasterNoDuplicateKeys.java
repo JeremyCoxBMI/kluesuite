@@ -319,47 +319,7 @@ public class CombineRocksDbIntoMasterNoDuplicateKeys {
         }
     }
 
-    public void agglomerateAndWriteWithFlush() {
-        LookUp curr, temp;
-        PositionList value;
-        tt.start();
 
-        //Pull items off priority queue in LEXOGRAPHIC ORDER, then write them to new database
-
-        //While pq is not empty, keep processing
-        long k = 0;
-        while (!pq.isEmpty()){
-            curr = pq.remove();
-            value = new PositionList(curr.posz);
-            putValueAndNext(curr.index);
-
-            //check to see if next item is same; if so, agglomerate entries
-            temp = pq.peek();
-            while( temp != null && temp.key == curr.key){
-                temp = pq.remove();
-                value.add(temp.posz);
-                putValueAndNext(temp.index);
-                temp = pq.peek();
-            }
-
-            k++;
-            if (k % period == 1){
-                //double pct = ((curr.key / 1L << 54) / new Double(1L << 8))*100;
-                double pct = (new Double(curr.key >> 54) / new Double(1L << 8))*100;
-                System.out.println("\tWriting Kmer31 number "+k/period+" million to master :: "+new Kmer31(curr.key)+"   records/s = "+(k*1000000000L)/tt.timePassedFromStart()+"\t"+pct+"%");
-            }
-
-            //master.putSynchronous(curr.key, value.toArrayListLong());
-            master.put(curr.key, value.toArrayListLong());
-            //BUILT IN PAUSE
-            long start = System.nanoTime();
-            long end=0;
-            do{
-                end = System.nanoTime();
-            }while(start + this.pause >= end);
-
-        }
-    }
 
 
     /**
