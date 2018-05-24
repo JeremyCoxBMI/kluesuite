@@ -28,7 +28,7 @@ public class CombineRocksDbIntoMaster {
      * Frequency at which speed reports are made.
      * Every million is meant to be less verbose, but perhaps still too much.
      */
-    static long period = 1L*1000*1000;
+    public static long period = 1L*1000*1000;
 
     protected String[] dbs;
     protected RocksDbKlue[] rdbs;
