@@ -20,29 +20,14 @@ import static org.cchmc.kluesuite.mainprograms.databasebuilders.CombineRocksDB.m
  */
 public class CombinePiecesMultipleKmerRocks16 {
 
-    public static ArrayList<String> findExistingParts(String prefix) {
-        ArrayList<String> filePartNames = new ArrayList<String>(100);
 
-        String fname = prefix;
-        File tmp = new File(fname);
-        //tmp = new File(kidDiskAllTemp+String.format("%02d", k));
-        int k = 1;
-        while (tmp.exists()) {
-            filePartNames.add(fname);
-            fname = new String(prefix +".p"+k);
-            k++;
-            tmp = new File(fname);
-        }
-
-        return filePartNames;
-    }
 
 
     public static void main(String[] args) {
         if (args.length < 2) {
             System.err.println("Takes a pieces of multiple databases and combines them");
             System.err.println("ARG 0  : final database name (16 part)");
-            System.err.println("ARG 1+ : location to place databases (path and prefix)");
+            System.err.println("ARG 1+ : location to databases (path and prefix)");
             System.err.println("       : a.k.a the master prefix used in all steps)");
 
         }
