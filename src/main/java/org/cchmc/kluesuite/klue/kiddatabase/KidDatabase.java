@@ -1,6 +1,7 @@
 package org.cchmc.kluesuite.klue.kiddatabase;
 
 import org.cchmc.kluesuite.klue.DnaBitString;
+import org.cchmc.kluesuite.klue.Kid;
 
 import java.util.HashMap;
 
@@ -22,5 +23,9 @@ public interface KidDatabase {
      * any shut down behavior required
      */
     public void shutDown();
+
+    void add(Kid bob);
+
+    void storeSequence(int i, DnaBitString dbs);
 
 }
