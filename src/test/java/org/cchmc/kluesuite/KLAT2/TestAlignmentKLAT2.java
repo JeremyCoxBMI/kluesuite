@@ -1,4 +1,4 @@
-package org.cchmc.kluesuite;
+package org.cchmc.kluesuite.KLAT2;
 
 import org.cchmc.kluesuite.builddb.DnaBitStringToDb;
 import org.cchmc.kluesuite.klat.PartialAlignment;
